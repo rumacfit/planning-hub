@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { saveData, subscribeToData } from './firebase';
 import './App.css';
 
 // Icons as simple SVG components
@@ -90,6 +91,12 @@ const CheckIcon = () => (
   </svg>
 );
 
+const CloudIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+  </svg>
+);
+
 // Color palette
 const COLORS = [
   '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
@@ -124,13 +131,11 @@ const getEventDuration = (event) => {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 };
 
-// Get staff names for an event
 const getStaffNames = (event, staff) => {
   const staffIds = event.staffIds || (event.staffId ? [event.staffId] : []);
   return staffIds.map(id => staff.find(s => s.id === id)?.name).filter(Boolean);
 };
 
-// Get first staff color for event
 const getEventColor = (event, staff) => {
   const staffIds = event.staffIds || (event.staffId ? [event.staffId] : []);
   if (staffIds.length > 0) {
@@ -152,45 +157,8 @@ const defaultStaff = [
   { id: 3, name: 'Ruby Lewis', email: 'ruby@example.com', position: 'Coach', color: '#EC4899' },
 ];
 
-const defaultEvents = [
-  { id: 1, title: 'Team Meeting', startDate: '2025-12-29', endDate: '2025-12-29', startTime: '09:00', endTime: '10:00', location: 'Office', staffIds: [1], color: '#3B82F6', isAllDay: false, showInDailyWeekly: true, showInMonthlyYearly: true },
-  { id: 2, title: 'Client Session', startDate: '2025-12-30', endDate: '2025-12-30', startTime: '14:00', endTime: '15:00', location: 'Studio', staffIds: [2], color: '#10B981', isAllDay: false, showInDailyWeekly: true, showInMonthlyYearly: true },
-];
-
-const defaultTasks = [
-  { id: 1, title: 'Update member records', description: 'Review and update all member contact info', dueDate: '2025-12-28', assignedTo: 1, status: 'pending', priority: 'high', completedAt: null },
-];
-
-// Storage helpers
-const STORAGE_KEY = 'planning_hub_data';
-
-const loadFromStorage = () => {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (data) {
-      const parsed = JSON.parse(data);
-      // Migrate old staffId to staffIds
-      if (parsed.events) {
-        parsed.events = parsed.events.map(e => ({
-          ...e,
-          staffIds: e.staffIds || (e.staffId ? [e.staffId] : [])
-        }));
-      }
-      return parsed;
-    }
-  } catch (e) {
-    console.error('Failed to load from storage:', e);
-  }
-  return null;
-};
-
-const saveToStorage = (data) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.error('Failed to save to storage:', e);
-  }
-};
+const defaultEvents = [];
+const defaultTasks = [];
 
 // Modal Component
 const Modal = ({ isOpen, onClose, title, children, size = 'normal' }) => {
@@ -201,9 +169,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'normal' }) => {
       <div className={`modal-content ${size === 'small' ? 'modal-small' : ''}`} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{title}</h2>
-          <button className="modal-close" onClick={onClose}>
-            <CloseIcon />
-          </button>
+          <button className="modal-close" onClick={onClose}><CloseIcon /></button>
         </div>
         {children}
       </div>
@@ -217,12 +183,7 @@ const ColorPicker = ({ selectedColor, onSelect }) => (
     <label>Color</label>
     <div className="color-options">
       {COLORS.map(color => (
-        <button
-          key={color}
-          className={`color-option ${selectedColor === color ? 'selected' : ''}`}
-          style={{ backgroundColor: color }}
-          onClick={() => onSelect(color)}
-        />
+        <button key={color} className={`color-option ${selectedColor === color ? 'selected' : ''}`} style={{ backgroundColor: color }} onClick={() => onSelect(color)} />
       ))}
     </div>
   </div>
@@ -244,11 +205,7 @@ const StaffPicker = ({ staff, selectedIds, onChange }) => {
       <div className="staff-picker-list">
         {staff.map(s => (
           <label key={s.id} className={`staff-picker-item ${selectedIds.includes(s.id) ? 'selected' : ''}`}>
-            <input
-              type="checkbox"
-              checked={selectedIds.includes(s.id)}
-              onChange={() => toggleStaff(s.id)}
-            />
+            <input type="checkbox" checked={selectedIds.includes(s.id)} onChange={() => toggleStaff(s.id)} />
             <span className="staff-picker-avatar" style={{ backgroundColor: s.color }}>{s.name.charAt(0)}</span>
             <span className="staff-picker-name">{s.name}</span>
           </label>
@@ -263,10 +220,7 @@ const DayPopup = ({ isOpen, onClose, dateStr, events, staff, onAddEvent, onEditE
   if (!isOpen || !dateStr) return null;
   
   const date = parseDate(dateStr);
-  const formattedDate = date.toLocaleDateString('en-US', { 
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-  });
-  
+  const formattedDate = date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const dayEvents = events.filter(e => isDateInEventRange(dateStr, e));
   
   return (
@@ -289,24 +243,16 @@ const DayPopup = ({ isOpen, onClose, dateStr, events, staff, onAddEvent, onEditE
                       <button onClick={() => onDeleteEvent(event.id)}><TrashIcon /></button>
                     </div>
                   </div>
-                  {event.isAllDay ? (
-                    <span className="day-popup-time all-day">All Day</span>
-                  ) : (
-                    <span className="day-popup-time">{event.startTime} - {event.endTime}</span>
-                  )}
+                  {event.isAllDay ? <span className="day-popup-time all-day">All Day</span> : <span className="day-popup-time">{event.startTime} - {event.endTime}</span>}
                   {duration > 1 && <span className="day-popup-duration">{duration} days</span>}
                   {event.location && <span className="day-popup-location">{event.location}</span>}
-                  {staffNames.length > 0 && (
-                    <span className="day-popup-staff">{staffNames.join(', ')}</span>
-                  )}
+                  {staffNames.length > 0 && <span className="day-popup-staff">{staffNames.join(', ')}</span>}
                 </div>
               );
             })}
           </div>
         )}
-        <button className="btn-primary day-popup-add" onClick={() => { onClose(); onAddEvent(dateStr); }}>
-          <PlusIcon /> Add Event
-        </button>
+        <button className="btn-primary day-popup-add" onClick={() => { onClose(); onAddEvent(dateStr); }}><PlusIcon /> Add Event</button>
       </div>
     </Modal>
   );
@@ -317,7 +263,6 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
   const today = new Date();
-  
   const monthlyEvents = events.filter(e => e.showInMonthlyYearly !== false);
   
   const getEventsForDay = (day) => {
@@ -331,9 +276,7 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
   };
   
   const days = [];
-  for (let i = 0; i < firstDay; i++) {
-    days.push(<div key={`empty-${i}`} className="mini-day empty" />);
-  }
+  for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="mini-day empty" />);
   
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -342,16 +285,9 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
     const hasEvents = dayEvents.length > 0;
     
     days.push(
-      <div 
-        key={day} 
-        className={`mini-day ${isToday ? 'today' : ''} ${hasEvents ? 'has-events' : ''}`}
-        onClick={() => onDateClick(dateStr)}
-        title={hasEvents ? dayEvents.map(e => e.title).join(', ') : ''}
-      >
+      <div key={day} className={`mini-day ${isToday ? 'today' : ''} ${hasEvents ? 'has-events' : ''}`} onClick={() => onDateClick(dateStr)} title={hasEvents ? dayEvents.map(e => e.title).join(', ') : ''}>
         <div className="mini-day-events">
-          {dayEvents.slice(0, 2).map((e, i) => (
-            <div key={i} className="mini-event-bar" style={{ backgroundColor: getEventColor(e, staff) }} title={e.title} />
-          ))}
+          {dayEvents.slice(0, 2).map((e, i) => <div key={i} className="mini-event-bar" style={{ backgroundColor: getEventColor(e, staff) }} title={e.title} />)}
         </div>
         <span className="mini-day-number">{day}</span>
       </div>
@@ -361,9 +297,7 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
   return (
     <div className="mini-calendar">
       <div className="mini-calendar-header">{MONTHS[month]}</div>
-      <div className="mini-calendar-days-header">
-        {DAYS_SHORT.map((d, i) => <div key={i} className="day-header">{d}</div>)}
-      </div>
+      <div className="mini-calendar-days-header">{DAYS_SHORT.map((d, i) => <div key={i} className="day-header">{d}</div>)}</div>
       <div className="mini-calendar-grid">{days}</div>
     </div>
   );
@@ -402,10 +336,7 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     let endDate = formData.endDate;
-    if (parseDate(endDate) < parseDate(formData.startDate)) {
-      endDate = formData.startDate;
-    }
-    // Set color based on first selected staff
+    if (parseDate(endDate) < parseDate(formData.startDate)) endDate = formData.startDate;
     let color = formData.color;
     if (formData.staffIds.length > 0) {
       const firstStaff = staff.find(s => s.id === formData.staffIds[0]);
@@ -424,14 +355,12 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate }) => {
           <label>Event Title</label>
           <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Event title" required />
         </div>
-
         <div className="form-group">
           <label className="checkbox-label">
             <input type="checkbox" checked={formData.isAllDay} onChange={e => setFormData({...formData, isAllDay: e.target.checked})} />
             All day / Multi-day event
           </label>
         </div>
-        
         <div className="form-row">
           <div className="form-group">
             <label>Start Date</label>
@@ -442,9 +371,7 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate }) => {
             <input type="date" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} min={formData.startDate} required />
           </div>
         </div>
-
         {duration > 1 && <div className="duration-badge">{duration} days</div>}
-        
         {!formData.isAllDay && (
           <div className="form-row">
             <div className="form-group">
@@ -457,14 +384,11 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate }) => {
             </div>
           </div>
         )}
-        
         <div className="form-group">
           <label>Location</label>
           <input type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} placeholder="Location" />
         </div>
-        
         <StaffPicker staff={staff} selectedIds={formData.staffIds} onChange={ids => setFormData({...formData, staffIds: ids})} />
-
         <div className="form-group">
           <label>Show In</label>
           <div className="visibility-options">
@@ -478,12 +402,10 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate }) => {
             </label>
           </div>
         </div>
-        
         <div className="form-group">
           <label>Description</label>
           <textarea value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Event description..." rows={3} />
         </div>
-        
         <div className="modal-actions">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn-primary">{event ? 'Save Changes' : 'Add Event'}</button>
@@ -495,21 +417,14 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate }) => {
 
 // Task Modal
 const TaskModal = ({ isOpen, onClose, onSave, task, staff }) => {
-  const [formData, setFormData] = useState({
-    title: '', description: '', dueDate: formatDate(new Date()),
-    assignedTo: null, status: 'pending', priority: 'medium'
-  });
+  const [formData, setFormData] = useState({ title: '', description: '', dueDate: formatDate(new Date()), assignedTo: null, status: 'pending', priority: 'medium' });
   
   useEffect(() => {
     if (task) setFormData(task);
     else setFormData({ title: '', description: '', dueDate: formatDate(new Date()), assignedTo: null, status: 'pending', priority: 'medium' });
   }, [task]);
   
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-    onClose();
-  };
+  const handleSubmit = (e) => { e.preventDefault(); onSave(formData); onClose(); };
   
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={task ? 'Edit Task' : 'Add Task'}>
@@ -569,11 +484,7 @@ const StaffModal = ({ isOpen, onClose, onSave, staffMember }) => {
     else setFormData({ name: '', email: '', position: '', color: COLORS[Math.floor(Math.random() * COLORS.length)] });
   }, [staffMember]);
   
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-    onClose();
-  };
+  const handleSubmit = (e) => { e.preventDefault(); onSave(formData); onClose(); };
   
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={staffMember ? 'Edit Staff Member' : 'Add Staff Member'}>
@@ -607,7 +518,6 @@ const DailyView = ({ date, events, tasks, staff, onAddEvent, onAddTask, onEditEv
   const dayEvents = dailyEvents.filter(e => isDateInEventRange(dateStr, e));
   const pendingTasks = tasks.filter(t => t.dueDate === dateStr && t.status !== 'completed');
   const completedTasks = tasks.filter(t => t.status === 'completed').sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
-  
   const formattedDate = date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const isToday = formatDate(new Date()) === dateStr;
   
@@ -624,16 +534,13 @@ const DailyView = ({ date, events, tasks, staff, onAddEvent, onAddTask, onEditEv
           </div>
         </div>
       </div>
-      
       <div className="daily-content">
         <div className="events-section">
           <div className="section-header">
             <h3>Events</h3>
             <button className="btn-primary" onClick={onAddEvent}><PlusIcon /> Add Event</button>
           </div>
-          {dayEvents.length === 0 ? (
-            <p className="empty-state">No events scheduled</p>
-          ) : (
+          {dayEvents.length === 0 ? <p className="empty-state">No events scheduled</p> : (
             <div className="events-list">
               {dayEvents.map(event => {
                 const staffNames = getStaffNames(event, staff);
@@ -656,23 +563,18 @@ const DailyView = ({ date, events, tasks, staff, onAddEvent, onAddTask, onEditEv
             </div>
           )}
         </div>
-        
         <div className="tasks-section">
           <div className="section-header">
             <h3>Tasks</h3>
             <button className="btn-primary" onClick={onAddTask}><PlusIcon /> Add Task</button>
           </div>
-          {pendingTasks.length === 0 ? (
-            <p className="empty-state">No tasks due</p>
-          ) : (
+          {pendingTasks.length === 0 ? <p className="empty-state">No tasks due</p> : (
             <div className="tasks-list">
               {pendingTasks.map(task => {
                 const staffMember = staff.find(s => s.id === task.assignedTo);
                 return (
                   <div key={task.id} className={`task-card priority-${task.priority}`}>
-                    <div className="task-checkbox">
-                      <input type="checkbox" checked={task.status === 'completed'} onChange={() => onToggleTask(task.id)} />
-                    </div>
+                    <div className="task-checkbox"><input type="checkbox" checked={task.status === 'completed'} onChange={() => onToggleTask(task.id)} /></div>
                     <div className="task-content">
                       <div className="task-title">{task.title}</div>
                       {task.description && <div className="task-description">{task.description}</div>}
@@ -686,7 +588,6 @@ const DailyView = ({ date, events, tasks, staff, onAddEvent, onAddTask, onEditEv
           )}
         </div>
       </div>
-
       {completedTasks.length > 0 && (
         <div className="completed-section">
           <div className="section-header"><h3><CheckIcon /> Completed Tasks</h3></div>
@@ -727,13 +628,11 @@ const WeeklyView = ({ date, events, staff, onDateClick, onNavigate, onToday, onA
   }
   
   const weeklyEvents = events.filter(e => e.showInDailyWeekly !== false);
-  
   const formatWeekRange = () => {
     const start = weekDays[0];
     const end = weekDays[6];
     return `${MONTHS[start.getMonth()].slice(0, 3)} ${start.getDate()} - ${MONTHS[end.getMonth()].slice(0, 3)} ${end.getDate()}`;
   };
-
   const today = new Date();
   const todayStr = formatDate(today);
   const isCurrentWeek = weekDays.some(d => formatDate(d) === todayStr);
@@ -752,13 +651,11 @@ const WeeklyView = ({ date, events, staff, onDateClick, onNavigate, onToday, onA
           </div>
         </div>
       </div>
-      
       <div className="week-grid">
         {weekDays.map((d, i) => {
           const dateStr = formatDate(d);
           const dayEvents = weeklyEvents.filter(e => isDateInEventRange(dateStr, e));
           const isToday = formatDate(new Date()) === dateStr;
-          
           return (
             <div key={i} className={`week-day ${isToday ? 'today' : ''}`} onClick={() => onDateClick(d)}>
               <div className="week-day-header">
@@ -792,7 +689,6 @@ const MonthlyView = ({ date, events, staff, onDateClick, onNavigate, onToday, on
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
   const today = new Date();
-  
   const monthlyEvents = events.filter(e => e.showInMonthlyYearly !== false);
   
   const getEventsForDay = (day) => {
@@ -801,11 +697,8 @@ const MonthlyView = ({ date, events, staff, onDateClick, onNavigate, onToday, on
   };
   
   const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
-  
   const days = [];
-  for (let i = 0; i < firstDay; i++) {
-    days.push(<div key={`empty-${i}`} className="month-day empty" />);
-  }
+  for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="month-day empty" />);
   
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -816,7 +709,7 @@ const MonthlyView = ({ date, events, staff, onDateClick, onNavigate, onToday, on
       <div key={day} className={`month-day ${isToday ? 'today' : ''}`} onClick={() => onDateClick(dateStr)}>
         <div className="month-day-number">{day}</div>
         <div className="month-day-events">
-          {dayEvents.slice(0, 3).map((event, i) => {
+          {dayEvents.slice(0, 3).map((event) => {
             const staffNames = getStaffNames(event, staff);
             const color = getEventColor(event, staff);
             return (
@@ -846,9 +739,7 @@ const MonthlyView = ({ date, events, staff, onDateClick, onNavigate, onToday, on
           </div>
         </div>
       </div>
-      <div className="month-grid-header">
-        {DAYS.map((d, i) => <div key={i} className="month-header-day">{d}</div>)}
-      </div>
+      <div className="month-grid-header">{DAYS.map((d, i) => <div key={i} className="month-header-day">{d}</div>)}</div>
       <div className="month-grid">{days}</div>
     </div>
   );
@@ -882,7 +773,6 @@ const StaffCalendarView = ({ year, staff, events, selectedStaffId, onSelectStaff
           ))}
         </div>
       </div>
-      
       <div className="calendar-main">
         <div className="calendar-header">
           <h2>{year} Calendar</h2>
@@ -896,13 +786,9 @@ const StaffCalendarView = ({ year, staff, events, selectedStaffId, onSelectStaff
           </div>
         </div>
         {selectedStaffId === 'all' && (
-          <div className="staff-legend">
-            {staff.map(s => <div key={s.id} className="legend-item"><span className="legend-color" style={{ backgroundColor: s.color }} /><span className="legend-name">{s.name}</span></div>)}
-          </div>
+          <div className="staff-legend">{staff.map(s => <div key={s.id} className="legend-item"><span className="legend-color" style={{ backgroundColor: s.color }} /><span className="legend-name">{s.name}</span></div>)}</div>
         )}
-        <div className="year-grid">
-          {MONTHS.map((_, month) => <MiniCalendar key={month} year={year} month={month} events={events} selectedStaffId={selectedStaffId} staff={staff} onDateClick={onDateClick} />)}
-        </div>
+        <div className="year-grid">{MONTHS.map((_, month) => <MiniCalendar key={month} year={year} month={month} events={events} selectedStaffId={selectedStaffId} staff={staff} onDateClick={onDateClick} />)}</div>
       </div>
     </div>
   );
@@ -913,11 +799,12 @@ function App() {
   const [activeView, setActiveView] = useState('daily');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [staff, setStaff] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [tasks, setTasks] = useState([]);
+  const [staff, setStaff] = useState(defaultStaff);
+  const [events, setEvents] = useState(defaultEvents);
+  const [tasks, setTasks] = useState(defaultTasks);
   const [selectedStaffId, setSelectedStaffId] = useState('all');
   const [isLoaded, setIsLoaded] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('connecting');
   
   // Modal states
   const [eventModalOpen, setEventModalOpen] = useState(false);
@@ -930,83 +817,105 @@ function App() {
   const [dayPopupOpen, setDayPopupOpen] = useState(false);
   const [dayPopupDate, setDayPopupDate] = useState(null);
   
-  // Load data on mount
-  useEffect(() => {
-    const stored = loadFromStorage();
-    if (stored) {
-      setStaff(stored.staff || defaultStaff);
-      setEvents(stored.events || defaultEvents);
-      setTasks(stored.tasks || defaultTasks);
-    } else {
-      setStaff(defaultStaff);
-      setEvents(defaultEvents);
-      setTasks(defaultTasks);
-    }
-    setIsLoaded(true);
+  // Save to Firebase
+  const saveToFirebase = useCallback((data) => {
+    setSyncStatus('saving');
+    saveData(data).then(() => {
+      setSyncStatus('synced');
+    }).catch((error) => {
+      console.error('Save error:', error);
+      setSyncStatus('error');
+    });
   }, []);
   
-  // Save data when it changes
+  // Load data from Firebase on mount
   useEffect(() => {
-    if (isLoaded) {
-      saveToStorage({ staff, events, tasks });
-    }
-  }, [staff, events, tasks, isLoaded]);
+    const unsubscribe = subscribeToData((data) => {
+      if (data) {
+        // Migrate old staffId to staffIds
+        const migratedEvents = (data.events || []).map(e => ({
+          ...e,
+          staffIds: e.staffIds || (e.staffId ? [e.staffId] : [])
+        }));
+        setStaff(data.staff || defaultStaff);
+        setEvents(migratedEvents);
+        setTasks(data.tasks || defaultTasks);
+      }
+      setIsLoaded(true);
+      setSyncStatus('synced');
+    });
+    
+    return () => unsubscribe();
+  }, []);
   
+  // Event handlers with Firebase save
   const handleSaveEvent = (eventData) => {
+    let newEvents;
     if (editingEvent) {
-      setEvents(events.map(e => e.id === editingEvent.id ? { ...eventData, id: e.id } : e));
+      newEvents = events.map(e => e.id === editingEvent.id ? { ...eventData, id: e.id } : e);
     } else {
-      setEvents([...events, { ...eventData, id: Date.now() }]);
+      newEvents = [...events, { ...eventData, id: Date.now() }];
     }
+    setEvents(newEvents);
+    saveToFirebase({ staff, events: newEvents, tasks });
     setEditingEvent(null);
     setEventInitialDate(null);
   };
   
   const handleDeleteEvent = (id) => {
     if (confirm('Delete this event?')) {
-      setEvents(events.filter(e => e.id !== id));
+      const newEvents = events.filter(e => e.id !== id);
+      setEvents(newEvents);
+      saveToFirebase({ staff, events: newEvents, tasks });
     }
   };
   
   const handleSaveTask = (taskData) => {
+    let newTasks;
     if (editingTask) {
-      setTasks(tasks.map(t => t.id === editingTask.id ? { ...taskData, id: t.id } : t));
+      newTasks = tasks.map(t => t.id === editingTask.id ? { ...taskData, id: t.id } : t);
     } else {
-      setTasks([...tasks, { ...taskData, id: Date.now(), completedAt: null }]);
+      newTasks = [...tasks, { ...taskData, id: Date.now(), completedAt: null }];
     }
+    setTasks(newTasks);
+    saveToFirebase({ staff, events, tasks: newTasks });
     setEditingTask(null);
   };
 
   const handleToggleTask = (id) => {
-    setTasks(tasks.map(t => {
+    const newTasks = tasks.map(t => {
       if (t.id === id) {
         const newStatus = t.status === 'completed' ? 'pending' : 'completed';
         return { ...t, status: newStatus, completedAt: newStatus === 'completed' ? new Date().toISOString() : null };
       }
       return t;
-    }));
+    });
+    setTasks(newTasks);
+    saveToFirebase({ staff, events, tasks: newTasks });
   };
   
   const handleSaveStaff = (staffData) => {
+    let newStaff;
     if (editingStaff) {
-      setStaff(staff.map(s => s.id === editingStaff.id ? { ...staffData, id: s.id } : s));
+      newStaff = staff.map(s => s.id === editingStaff.id ? { ...staffData, id: s.id } : s);
     } else {
-      setStaff([...staff, { ...staffData, id: Date.now() }]);
+      newStaff = [...staff, { ...staffData, id: Date.now() }];
     }
+    setStaff(newStaff);
+    saveToFirebase({ staff: newStaff, events, tasks });
     setEditingStaff(null);
   };
   
   const handleDeleteStaff = (id) => {
     if (confirm('Delete this staff member?')) {
-      setStaff(staff.filter(s => s.id !== id));
+      const newStaff = staff.filter(s => s.id !== id);
+      setStaff(newStaff);
       if (selectedStaffId === id) setSelectedStaffId('all');
+      saveToFirebase({ staff: newStaff, events, tasks });
     }
   };
   
-  const handleDayClick = (dateStr) => {
-    setDayPopupDate(dateStr);
-    setDayPopupOpen(true);
-  };
+  const handleDayClick = (dateStr) => { setDayPopupDate(dateStr); setDayPopupOpen(true); };
   
   const navigateDate = (direction) => {
     const newDate = new Date(currentDate);
@@ -1017,12 +926,7 @@ function App() {
   };
 
   const goToToday = () => setCurrentDate(new Date());
-
-  const openAddEvent = (initialDate = null) => {
-    setEditingEvent(null);
-    setEventInitialDate(initialDate || formatDate(currentDate));
-    setEventModalOpen(true);
-  };
+  const openAddEvent = (initialDate = null) => { setEditingEvent(null); setEventInitialDate(initialDate || formatDate(currentDate)); setEventModalOpen(true); };
   
   if (!isLoaded) return <div className="loading">Loading...</div>;
   
@@ -1036,6 +940,10 @@ function App() {
           <button className={`nav-tab ${activeView === 'monthly' ? 'active' : ''}`} onClick={() => setActiveView('monthly')}><GridIcon /> Monthly</button>
           <button className={`nav-tab ${activeView === 'staff' ? 'active' : ''}`} onClick={() => setActiveView('staff')}><CalendarIcon /> Staff Calendar</button>
         </nav>
+        <div className={`sync-status ${syncStatus}`}>
+          <CloudIcon />
+          <span>{syncStatus === 'synced' ? 'Synced' : syncStatus === 'saving' ? 'Saving...' : syncStatus === 'connecting' ? 'Connecting...' : 'Error'}</span>
+        </div>
       </header>
       
       <main className="app-main">
