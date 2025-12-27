@@ -883,9 +883,20 @@ function App() {
   const [events, setEvents] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [selectedStaffId, setSelectedStaffId] = useState('all');
-  const [currentStaffId, setCurrentStaffId] = useState(null);
+  const [currentStaffId, setCurrentStaffId] = useState(() => {
+    // Load from localStorage on initial render
+    const saved = localStorage.getItem('planning_hub_current_staff');
+    return saved ? Number(saved) : null;
+  });
   const [isLoaded, setIsLoaded] = useState(false);
   const [syncStatus, setSyncStatus] = useState('connecting');
+  
+  // Save currentStaffId to localStorage whenever it changes
+  useEffect(() => {
+    if (currentStaffId) {
+      localStorage.setItem('planning_hub_current_staff', currentStaffId.toString());
+    }
+  }, [currentStaffId]);
   
   // Modal states
   const [eventModalOpen, setEventModalOpen] = useState(false);
@@ -913,7 +924,10 @@ function App() {
         setStaff(data.staff || defaultStaff);
         setEvents(migratedEvents);
         setTasks(data.tasks || []);
-        if (!currentStaffId && data.staff?.length > 0) setCurrentStaffId(data.staff[0].id);
+        // Only set currentStaffId if not already set from localStorage
+        if (!currentStaffId && data.staff?.length > 0) {
+          setCurrentStaffId(data.staff[0].id);
+        }
       }
       setIsLoaded(true);
       setSyncStatus('synced');
