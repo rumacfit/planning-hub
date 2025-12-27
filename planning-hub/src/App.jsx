@@ -26,6 +26,15 @@ const ChartIcon = () => (
   </svg>
 );
 
+const GridIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="3" width="7" height="7"/>
+    <rect x="14" y="3" width="7" height="7"/>
+    <rect x="14" y="14" width="7" height="7"/>
+    <rect x="3" y="14" width="7" height="7"/>
+  </svg>
+);
+
 const UsersIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -99,7 +108,6 @@ const COLORS = [
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year, month) => {
   const day = new Date(year, month, 1).getDay();
-  // Convert Sunday (0) to 7 for Monday-start week
   return day === 0 ? 6 : day - 1;
 };
 
@@ -112,7 +120,6 @@ const parseDate = (dateStr) => {
   return new Date(year, month - 1, day);
 };
 
-// Check if a date falls within an event's date range
 const isDateInEventRange = (dateStr, event) => {
   const date = parseDate(dateStr);
   const startDate = parseDate(event.startDate || event.date);
@@ -120,7 +127,6 @@ const isDateInEventRange = (dateStr, event) => {
   return date >= startDate && date <= endDate;
 };
 
-// Calculate number of days in an event
 const getEventDuration = (event) => {
   const startDate = parseDate(event.startDate || event.date);
   const endDate = parseDate(event.endDate || event.startDate || event.date);
@@ -131,7 +137,6 @@ const getEventDuration = (event) => {
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 
                 'July', 'August', 'September', 'October', 'November', 'December'];
-// Monday-start week
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DAYS_SHORT = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
@@ -143,10 +148,10 @@ const initialStaff = [
 ];
 
 const initialEvents = [
-  { id: 1, title: 'Team Meeting', startDate: '2025-12-29', endDate: '2025-12-29', startTime: '09:00', endTime: '10:00', location: 'Office', staffId: 1, color: '#3B82F6', isAllDay: false },
-  { id: 2, title: 'Client Session', startDate: '2025-12-30', endDate: '2025-12-30', startTime: '14:00', endTime: '15:00', location: 'Studio', staffId: 2, color: '#10B981', isAllDay: false },
-  { id: 3, title: 'Inspection', startDate: '2026-01-09', endDate: '2026-01-09', startTime: '10:00', endTime: '11:00', location: '30/110 Reynolds street, Balmain', staffId: 1, color: '#3B82F6', isAllDay: false },
-  { id: 4, title: 'Annual Leave', startDate: '2026-01-13', endDate: '2026-01-17', startTime: '', endTime: '', location: '', staffId: 3, color: '#EC4899', isAllDay: true },
+  { id: 1, title: 'Team Meeting', startDate: '2025-12-29', endDate: '2025-12-29', startTime: '09:00', endTime: '10:00', location: 'Office', staffId: 1, color: '#3B82F6', isAllDay: false, showInDailyWeekly: true, showInMonthlyYearly: true },
+  { id: 2, title: 'Client Session', startDate: '2025-12-30', endDate: '2025-12-30', startTime: '14:00', endTime: '15:00', location: 'Studio', staffId: 2, color: '#10B981', isAllDay: false, showInDailyWeekly: true, showInMonthlyYearly: true },
+  { id: 3, title: 'Inspection', startDate: '2026-01-09', endDate: '2026-01-09', startTime: '10:00', endTime: '11:00', location: '30/110 Reynolds street, Balmain', staffId: 1, color: '#3B82F6', isAllDay: false, showInDailyWeekly: true, showInMonthlyYearly: true },
+  { id: 4, title: 'Annual Leave', startDate: '2026-01-13', endDate: '2026-01-17', startTime: '', endTime: '', location: '', staffId: 3, color: '#EC4899', isAllDay: true, showInDailyWeekly: false, showInMonthlyYearly: true },
 ];
 
 const initialTasks = [
@@ -155,12 +160,12 @@ const initialTasks = [
 ];
 
 // Modal Component
-const Modal = ({ isOpen, onClose, title, children }) => {
+const Modal = ({ isOpen, onClose, title, children, size = 'normal' }) => {
   if (!isOpen) return null;
   
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <div className={`modal-content ${size === 'small' ? 'modal-small' : ''}`} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{title}</h2>
           <button className="modal-close" onClick={onClose}>
@@ -190,11 +195,83 @@ const ColorPicker = ({ selectedColor, onSelect }) => (
   </div>
 );
 
-// Mini Calendar for Year View
+// Day Popup Component - shows events for a specific day
+const DayPopup = ({ isOpen, onClose, dateStr, events, staff, onAddEvent, onEditEvent, onDeleteEvent }) => {
+  if (!isOpen) return null;
+  
+  const date = parseDate(dateStr);
+  const formattedDate = date.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  const dayEvents = events.filter(e => isDateInEventRange(dateStr, e));
+  
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={formattedDate} size="small">
+      <div className="day-popup-content">
+        {dayEvents.length === 0 ? (
+          <p className="empty-state">No events on this day</p>
+        ) : (
+          <div className="day-popup-events">
+            {dayEvents.map(event => {
+              const staffMember = staff.find(s => s.id === event.staffId);
+              const duration = getEventDuration(event);
+              return (
+                <div key={event.id} className="day-popup-event" style={{ borderLeftColor: event.color }}>
+                  <div className="day-popup-event-header">
+                    <span className="day-popup-event-title">{event.title}</span>
+                    <div className="day-popup-event-actions">
+                      <button onClick={() => { onClose(); onEditEvent(event); }}><EditIcon /></button>
+                      <button onClick={() => onDeleteEvent(event.id)}><TrashIcon /></button>
+                    </div>
+                  </div>
+                  {event.isAllDay ? (
+                    <span className="day-popup-time all-day">All Day</span>
+                  ) : (
+                    <span className="day-popup-time">{event.startTime} - {event.endTime}</span>
+                  )}
+                  {duration > 1 && <span className="day-popup-duration">{duration} days</span>}
+                  {event.location && <span className="day-popup-location">{event.location}</span>}
+                  {staffMember && (
+                    <span className="day-popup-staff">
+                      <span className="staff-dot" style={{ backgroundColor: staffMember.color }} />
+                      {staffMember.name}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <button className="btn-primary day-popup-add" onClick={() => { onClose(); onAddEvent(dateStr); }}>
+          <PlusIcon /> Add Event
+        </button>
+      </div>
+    </Modal>
+  );
+};
+
+// Mini Calendar for Year View - with event bars
 const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick }) => {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
   const today = new Date();
+  
+  // Filter events for monthly/yearly display
+  const monthlyEvents = events.filter(e => e.showInMonthlyYearly !== false);
+  
+  // Get events that appear in this month
+  const getEventsForDay = (day) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return monthlyEvents.filter(e => {
+      if (!isDateInEventRange(dateStr, e)) return false;
+      if (selectedStaffId === 'all') return true;
+      return e.staffId === selectedStaffId;
+    });
+  };
   
   const days = [];
   for (let i = 0; i < firstDay; i++) {
@@ -204,14 +281,7 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
-    
-    // Get events for this day (including multi-day events)
-    const dayEvents = events.filter(e => {
-      if (!isDateInEventRange(dateStr, e)) return false;
-      if (selectedStaffId === 'all') return true;
-      return e.staffId === selectedStaffId;
-    });
-    
+    const dayEvents = getEventsForDay(day);
     const hasEvents = dayEvents.length > 0;
     
     days.push(
@@ -222,15 +292,13 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
         title={hasEvents ? dayEvents.map(e => e.title).join(', ') : ''}
       >
         <span className="day-number">{day}</span>
-        {hasEvents && selectedStaffId === 'all' && (
-          <div className="event-dots">
-            {dayEvents.slice(0, 3).map((e, i) => (
-              <span key={i} className="event-dot" style={{ backgroundColor: e.color }} />
+        {hasEvents && (
+          <div className="mini-event-bars">
+            {dayEvents.slice(0, 2).map((e, i) => (
+              <div key={i} className="mini-event-bar" style={{ backgroundColor: e.color }} />
             ))}
+            {dayEvents.length > 2 && <div className="mini-event-more">+{dayEvents.length - 2}</div>}
           </div>
-        )}
-        {hasEvents && selectedStaffId !== 'all' && (
-          <div className="event-indicator" style={{ backgroundColor: staff.find(s => s.id === selectedStaffId)?.color }} />
         )}
       </div>
     );
@@ -261,7 +329,9 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate }) => {
     description: '',
     staffId: staff[0]?.id || null,
     color: COLORS[0],
-    isAllDay: false
+    isAllDay: false,
+    showInDailyWeekly: true,
+    showInMonthlyYearly: true
   });
   
   useEffect(() => {
@@ -270,6 +340,8 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate }) => {
         ...event,
         startDate: event.startDate || event.date || formatDate(new Date()),
         endDate: event.endDate || event.startDate || event.date || formatDate(new Date()),
+        showInDailyWeekly: event.showInDailyWeekly !== false,
+        showInMonthlyYearly: event.showInMonthlyYearly !== false
       });
     } else {
       const dateToUse = initialDate || formatDate(new Date());
@@ -283,14 +355,15 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate }) => {
         description: '',
         staffId: staff[0]?.id || null,
         color: staff[0]?.color || COLORS[0],
-        isAllDay: false
+        isAllDay: false,
+        showInDailyWeekly: true,
+        showInMonthlyYearly: true
       });
     }
   }, [event, staff, initialDate]);
   
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Ensure endDate is not before startDate
     let endDate = formData.endDate;
     if (parseDate(endDate) < parseDate(formData.startDate)) {
       endDate = formData.startDate;
@@ -402,6 +475,29 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate }) => {
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
+        </div>
+
+        {/* Visibility Options */}
+        <div className="form-group">
+          <label>Show In</label>
+          <div className="visibility-options">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={formData.showInDailyWeekly}
+                onChange={e => setFormData({...formData, showInDailyWeekly: e.target.checked})}
+              />
+              Daily & Weekly
+            </label>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={formData.showInMonthlyYearly}
+                onChange={e => setFormData({...formData, showInMonthlyYearly: e.target.checked})}
+              />
+              Monthly & Yearly
+            </label>
+          </div>
         </div>
         
         <div className="form-group">
@@ -626,7 +722,9 @@ const StaffModal = ({ isOpen, onClose, onSave, staffMember }) => {
 // Daily View Component
 const DailyView = ({ date, events, tasks, staff, onAddEvent, onAddTask, onEditEvent, onDeleteEvent, onToggleTask, onNavigate, onToday }) => {
   const dateStr = formatDate(date);
-  const dayEvents = events.filter(e => isDateInEventRange(dateStr, e));
+  // Filter for daily/weekly display
+  const dailyEvents = events.filter(e => e.showInDailyWeekly !== false);
+  const dayEvents = dailyEvents.filter(e => isDateInEventRange(dateStr, e));
   const pendingTasks = tasks.filter(t => t.dueDate === dateStr && t.status !== 'completed');
   const completedTasks = tasks.filter(t => t.status === 'completed').sort((a, b) => 
     new Date(b.completedAt) - new Date(a.completedAt)
@@ -738,7 +836,6 @@ const DailyView = ({ date, events, tasks, staff, onAddEvent, onAddTask, onEditEv
         </div>
       </div>
 
-      {/* Completed Tasks Log */}
       {completedTasks.length > 0 && (
         <div className="completed-section">
           <div className="section-header">
@@ -774,10 +871,8 @@ const DailyView = ({ date, events, tasks, staff, onAddEvent, onAddTask, onEditEv
 
 // Weekly View Component
 const WeeklyView = ({ date, events, staff, onDateClick, onNavigate, onToday }) => {
-  // Get Monday of the current week
   const startOfWeek = new Date(date);
   const day = startOfWeek.getDay();
-  // Adjust for Monday start (Sunday = 0, so we need to go back 6 days; Monday = 1, go back 0 days)
   const daysToSubtract = day === 0 ? 6 : day - 1;
   startOfWeek.setDate(startOfWeek.getDate() - daysToSubtract);
   
@@ -788,13 +883,15 @@ const WeeklyView = ({ date, events, staff, onDateClick, onNavigate, onToday }) =
     weekDays.push(d);
   }
   
+  // Filter for daily/weekly display
+  const weeklyEvents = events.filter(e => e.showInDailyWeekly !== false);
+  
   const formatWeekRange = () => {
     const start = weekDays[0];
     const end = weekDays[6];
     return `${MONTHS[start.getMonth()].slice(0, 3)} ${start.getDate()} - ${MONTHS[end.getMonth()].slice(0, 3)} ${end.getDate()}`;
   };
 
-  // Check if current week contains today
   const today = new Date();
   const todayStr = formatDate(today);
   const isCurrentWeek = weekDays.some(d => formatDate(d) === todayStr);
@@ -816,7 +913,7 @@ const WeeklyView = ({ date, events, staff, onDateClick, onNavigate, onToday }) =
       <div className="week-grid">
         {weekDays.map((d, i) => {
           const dateStr = formatDate(d);
-          const dayEvents = events.filter(e => isDateInEventRange(dateStr, e));
+          const dayEvents = weeklyEvents.filter(e => isDateInEventRange(dateStr, e));
           const isToday = formatDate(new Date()) === dateStr;
           
           return (
@@ -845,6 +942,90 @@ const WeeklyView = ({ date, events, staff, onDateClick, onNavigate, onToday }) =
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+};
+
+// Monthly View Component - NEW
+const MonthlyView = ({ date, events, staff, onDateClick, onNavigate, onToday, onAddEvent }) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const daysInMonth = getDaysInMonth(year, month);
+  const firstDay = getFirstDayOfMonth(year, month);
+  const today = new Date();
+  
+  // Filter for monthly/yearly display
+  const monthlyEvents = events.filter(e => e.showInMonthlyYearly !== false);
+  
+  const getEventsForDay = (day) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return monthlyEvents.filter(e => isDateInEventRange(dateStr, e));
+  };
+  
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+  
+  const days = [];
+  for (let i = 0; i < firstDay; i++) {
+    days.push(<div key={`empty-${i}`} className="month-day empty" />);
+  }
+  
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+    const dayEvents = getEventsForDay(day);
+    
+    days.push(
+      <div 
+        key={day} 
+        className={`month-day ${isToday ? 'today' : ''}`}
+        onClick={() => onDateClick(dateStr)}
+      >
+        <div className="month-day-number">{day}</div>
+        <div className="month-day-events">
+          {dayEvents.slice(0, 3).map((event, i) => (
+            <div 
+              key={event.id} 
+              className="month-event-bar"
+              style={{ backgroundColor: event.color }}
+              title={event.title}
+            >
+              {event.title}
+            </div>
+          ))}
+          {dayEvents.length > 3 && (
+            <div className="month-event-more">+{dayEvents.length - 3} more</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="monthly-view">
+      <div className="view-header">
+        <h2>Monthly View</h2>
+        <button className="btn-primary" onClick={() => onAddEvent()}>
+          <PlusIcon /> Add Event
+        </button>
+        <div className="date-nav-container">
+          <button className="btn-today" onClick={onToday} disabled={isCurrentMonth}>This Month</button>
+          <div className="date-navigation">
+            <button onClick={() => onNavigate(-1)}><ChevronLeft /></button>
+            <span className="month-year">{MONTHS[month]} {year}</span>
+            <button onClick={() => onNavigate(1)}><ChevronRight /></button>
+          </div>
+        </div>
+      </div>
+      
+      <div className="month-grid-header">
+        {DAYS.map((d, i) => (
+          <div key={i} className="month-header-day">{d}</div>
+        ))}
+      </div>
+      
+      <div className="month-grid">
+        {days}
       </div>
     </div>
   );
@@ -880,7 +1061,6 @@ const StaffCalendarView = ({
         </div>
         
         <div className="staff-list">
-          {/* All Staff Option */}
           <div 
             className={`staff-item ${selectedStaffId === 'all' ? 'selected' : ''}`}
             onClick={() => onSelectStaff('all')}
@@ -989,6 +1169,10 @@ function App() {
   const [editingStaff, setEditingStaff] = useState(null);
   const [eventInitialDate, setEventInitialDate] = useState(null);
   
+  // Day popup state
+  const [dayPopupOpen, setDayPopupOpen] = useState(false);
+  const [dayPopupDate, setDayPopupDate] = useState(null);
+  
   // Event handlers
   const handleSaveEvent = (eventData) => {
     if (editingEvent) {
@@ -1032,7 +1216,6 @@ function App() {
   const handleSaveStaff = (staffData) => {
     if (editingStaff) {
       setStaff(staff.map(s => s.id === editingStaff.id ? { ...staffData, id: s.id } : s));
-      // Update events for this staff member
       setEvents(events.map(e => e.staffId === editingStaff.id ? { ...e, color: staffData.color } : e));
     } else {
       setStaff([...staff, { ...staffData, id: Date.now() }]);
@@ -1047,17 +1230,20 @@ function App() {
     }
   };
   
-  const handleDateClick = (dateStr) => {
-    setCurrentDate(parseDate(dateStr));
-    setActiveView('daily');
+  // Day click handler - opens popup instead of navigating
+  const handleDayClick = (dateStr) => {
+    setDayPopupDate(dateStr);
+    setDayPopupOpen(true);
   };
   
   const navigateDate = (direction) => {
     const newDate = new Date(currentDate);
     if (activeView === 'daily') {
       newDate.setDate(newDate.getDate() + direction);
-    } else {
+    } else if (activeView === 'weekly') {
       newDate.setDate(newDate.getDate() + (direction * 7));
+    } else if (activeView === 'monthly') {
+      newDate.setMonth(newDate.getMonth() + direction);
     }
     setCurrentDate(newDate);
   };
@@ -1066,9 +1252,9 @@ function App() {
     setCurrentDate(new Date());
   };
 
-  const openAddEventFromCalendar = (initialDate = null) => {
+  const openAddEvent = (initialDate = null) => {
     setEditingEvent(null);
-    setEventInitialDate(initialDate);
+    setEventInitialDate(initialDate || formatDate(currentDate));
     setEventModalOpen(true);
   };
   
@@ -1094,6 +1280,12 @@ function App() {
             <ChartIcon /> Weekly
           </button>
           <button 
+            className={`nav-tab ${activeView === 'monthly' ? 'active' : ''}`}
+            onClick={() => setActiveView('monthly')}
+          >
+            <GridIcon /> Monthly
+          </button>
+          <button 
             className={`nav-tab ${activeView === 'staff' ? 'active' : ''}`}
             onClick={() => setActiveView('staff')}
           >
@@ -1109,7 +1301,7 @@ function App() {
             events={events}
             tasks={tasks}
             staff={staff}
-            onAddEvent={() => { setEditingEvent(null); setEventInitialDate(formatDate(currentDate)); setEventModalOpen(true); }}
+            onAddEvent={() => openAddEvent(formatDate(currentDate))}
             onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }}
             onEditEvent={(event) => { setEditingEvent(event); setEventModalOpen(true); }}
             onDeleteEvent={handleDeleteEvent}
@@ -1130,6 +1322,18 @@ function App() {
           />
         )}
         
+        {activeView === 'monthly' && (
+          <MonthlyView
+            date={currentDate}
+            events={events}
+            staff={staff}
+            onDateClick={handleDayClick}
+            onNavigate={navigateDate}
+            onToday={goToToday}
+            onAddEvent={openAddEvent}
+          />
+        )}
+        
         {activeView === 'staff' && (
           <StaffCalendarView
             year={currentYear}
@@ -1140,9 +1344,9 @@ function App() {
             onAddStaff={() => { setEditingStaff(null); setStaffModalOpen(true); }}
             onEditStaff={(s) => { setEditingStaff(s); setStaffModalOpen(true); }}
             onDeleteStaff={handleDeleteStaff}
-            onDateClick={handleDateClick}
+            onDateClick={handleDayClick}
             onYearChange={setCurrentYear}
-            onAddEvent={openAddEventFromCalendar}
+            onAddEvent={openAddEvent}
           />
         )}
       </main>
@@ -1169,6 +1373,17 @@ function App() {
         onClose={() => { setStaffModalOpen(false); setEditingStaff(null); }}
         onSave={handleSaveStaff}
         staffMember={editingStaff}
+      />
+      
+      <DayPopup
+        isOpen={dayPopupOpen}
+        onClose={() => { setDayPopupOpen(false); setDayPopupDate(null); }}
+        dateStr={dayPopupDate}
+        events={events.filter(e => e.showInMonthlyYearly !== false)}
+        staff={staff}
+        onAddEvent={openAddEvent}
+        onEditEvent={(event) => { setEditingEvent(event); setEventModalOpen(true); }}
+        onDeleteEvent={handleDeleteEvent}
       />
     </div>
   );
