@@ -112,7 +112,7 @@ body {
   position: relative;
 }
 
-/* Date Navigation - New Layout */
+/* Date Navigation */
 .date-nav-container {
   display: flex;
   align-items: center;
@@ -200,10 +200,11 @@ body {
   text-align: center;
 }
 
+/* Daily Content - BALANCED LAYOUT */
 .daily-content {
   display: grid;
-  grid-template-columns: 1fr 350px;
-  gap: 2rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
 }
 
 .section-header {
@@ -217,6 +218,9 @@ body {
   font-size: 1rem;
   font-weight: 600;
   color: var(--gray-800);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .empty-state {
@@ -227,6 +231,10 @@ body {
 }
 
 /* Events */
+.events-section {
+  min-width: 0;
+}
+
 .events-list {
   display: flex;
   flex-direction: column;
@@ -241,6 +249,10 @@ body {
   position: relative;
 }
 
+.event-card.multi-day {
+  background: linear-gradient(135deg, var(--gray-50) 0%, #EEF2FF 100%);
+}
+
 .event-card:hover .event-actions {
   opacity: 1;
 }
@@ -252,10 +264,26 @@ body {
   margin-bottom: 0.25rem;
 }
 
+.event-time.all-day {
+  color: var(--primary);
+  background: var(--primary-light);
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
 .event-title {
   font-weight: 600;
   color: var(--gray-900);
   margin-bottom: 0.25rem;
+}
+
+.event-duration {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  margin-bottom: 0.25rem;
+  font-style: italic;
 }
 
 .event-location {
@@ -308,8 +336,9 @@ body {
 
 /* Tasks */
 .tasks-section {
-  border-left: 1px solid var(--gray-100);
-  padding-left: 2rem;
+  border-left: 1px solid var(--gray-200);
+  padding-left: 1.5rem;
+  min-width: 0;
 }
 
 .tasks-list {
@@ -336,6 +365,7 @@ body {
 
 .task-content {
   flex: 1;
+  min-width: 0;
 }
 
 .task-title {
@@ -362,6 +392,7 @@ body {
   text-transform: uppercase;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .priority-badge.high {
@@ -377,6 +408,70 @@ body {
 .priority-badge.low {
   background: #DBEAFE;
   color: #2563EB;
+}
+
+/* Completed Tasks Section */
+.completed-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--gray-200);
+}
+
+.completed-section .section-header h3 {
+  color: var(--success);
+}
+
+.completed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.completed-task {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--gray-50);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--success);
+}
+
+.completed-check {
+  width: 24px;
+  height: 24px;
+  background: var(--success);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.completed-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.completed-title {
+  display: block;
+  font-weight: 500;
+  color: var(--gray-600);
+  font-size: 0.875rem;
+  text-decoration: line-through;
+}
+
+.completed-assignee {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--gray-400);
+}
+
+.completed-time {
+  font-size: 0.75rem;
+  color: var(--gray-400);
+  white-space: nowrap;
 }
 
 /* Weekly View */
@@ -436,6 +531,10 @@ body {
   padding: 0.375rem 0.5rem;
   border-radius: 4px;
   font-size: 0.75rem;
+}
+
+.week-event.all-day {
+  background-color: rgba(59, 130, 246, 0.15) !important;
 }
 
 .event-time-small {
@@ -612,6 +711,7 @@ body {
   margin-bottom: 1rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--gray-100);
+  flex-wrap: wrap;
 }
 
 .calendar-header h2 {
@@ -629,8 +729,11 @@ body {
   color: var(--primary);
 }
 
-.year-nav {
+.btn-add-event-calendar {
   margin-left: auto;
+}
+
+.year-nav {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -941,6 +1044,33 @@ body {
   gap: 1rem;
 }
 
+/* Checkbox Label */
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* Duration Badge */
+.duration-badge {
+  display: inline-block;
+  background: var(--primary-light);
+  color: var(--primary);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
 /* Color Picker */
 .color-picker {
   margin-bottom: 1rem;
@@ -1019,10 +1149,14 @@ body {
   
   .tasks-section {
     border-left: none;
-    border-top: 1px solid var(--gray-100);
+    border-top: 1px solid var(--gray-200);
     padding-left: 0;
-    padding-top: 2rem;
-    margin-top: 1rem;
+    padding-top: 1.5rem;
+    margin-top: 0;
+  }
+
+  .btn-add-event-calendar {
+    margin-left: 0;
   }
 }
 
@@ -1063,6 +1197,17 @@ body {
 
   .current-date, .week-range {
     flex: 1;
+  }
+
+  .calendar-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .year-nav {
+    width: 100%;
+    justify-content: center;
   }
 }
 
