@@ -122,6 +122,17 @@ const SortDropdown = ({ value, onChange, options }) => (
   </div>
 );
 
+// Staff Filter Dropdown
+const StaffFilter = ({ staff, value, onChange }) => (
+  <div className="staff-filter">
+    <UserIcon />
+    <select value={value} onChange={e => onChange(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+      <option value="all">All</option>
+      {staff.map(s => <option key={s.id} value={s.id}>{s.name.split(' ')[0]}</option>)}
+    </select>
+  </div>
+);
+
 // Event Modal - Simplified
 const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate, isSimple = false }) => {
   const [formData, setFormData] = useState({
@@ -524,16 +535,24 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
 };
 
 // Daily View
-const DailyView = ({ date, events, tasks, staff, currentStaffId, onAddEvent, onAddTask, onEditEvent, onEditTask, onDeleteEvent, onDeleteTask, onToggleTask, onToggleEvent, onNavigate, onToday }) => {
+const DailyView = ({ date, events, tasks, staff, currentStaffId, filterStaffId, onFilterStaffChange, onAddEvent, onAddTask, onEditEvent, onEditTask, onDeleteEvent, onDeleteTask, onToggleTask, onToggleEvent, onNavigate, onToday }) => {
   const [eventSort, setEventSort] = useState('time');
   const [taskSort, setTaskSort] = useState('priority');
   
   const dateStr = formatDate(date);
   const dayEvents = events.filter(e => e.showInDailyWeekly !== false && isDateInEventRange(dateStr, e));
-  const pendingEvents = dayEvents.filter(e => e.status !== 'completed');
-  const completedEvents = dayEvents.filter(e => e.status === 'completed');
-  const pendingTasks = tasks.filter(t => t.dueDate === dateStr && t.status !== 'completed');
-  const completedTasks = tasks.filter(t => t.status === 'completed').sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+  
+  // Filter by staff
+  const filteredEvents = filterStaffId === 'all' ? dayEvents : dayEvents.filter(e => {
+    const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
+    return staffIds.includes(filterStaffId);
+  });
+  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => t.assignedTo === filterStaffId);
+  
+  const pendingEvents = filteredEvents.filter(e => e.status !== 'completed');
+  const completedEvents = filteredEvents.filter(e => e.status === 'completed');
+  const pendingTasks = filteredTasks.filter(t => t.dueDate === dateStr && t.status !== 'completed');
+  const completedTasks = filteredTasks.filter(t => t.status === 'completed').sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
   
   // Combine completed events and tasks
   const allCompleted = [
@@ -565,6 +584,7 @@ const DailyView = ({ date, events, tasks, staff, currentStaffId, onAddEvent, onA
     <div className="daily-view">
       <div className="view-header">
         <h2>Daily Plan</h2>
+        <StaffFilter staff={staff} value={filterStaffId} onChange={onFilterStaffChange} />
         <div className="date-nav-container">
           <button className="btn-today" onClick={onToday} disabled={isToday}>Today</button>
           <div className="date-navigation">
@@ -665,7 +685,7 @@ const DailyView = ({ date, events, tasks, staff, currentStaffId, onAddEvent, onA
 };
 
 // Weekly View
-const WeeklyView = ({ date, events, tasks, staff, onNavigate, onToday, onAddEvent, onEditEvent, onDeleteEvent, onEditTask, onDeleteTask, onToggleTask }) => {
+const WeeklyView = ({ date, events, tasks, staff, filterStaffId, onFilterStaffChange, onNavigate, onToday, onAddEvent, onEditEvent, onDeleteEvent, onEditTask, onDeleteTask, onToggleTask }) => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [itemType, setItemType] = useState(null);
   const [eventSort, setEventSort] = useState('time');
@@ -682,6 +702,13 @@ const WeeklyView = ({ date, events, tasks, staff, onNavigate, onToday, onAddEven
   }
   
   const weeklyEvents = events.filter(e => e.showInDailyWeekly !== false);
+  
+  // Filter by staff
+  const filteredEvents = filterStaffId === 'all' ? weeklyEvents : weeklyEvents.filter(e => {
+    const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
+    return staffIds.includes(filterStaffId);
+  });
+  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => t.assignedTo === filterStaffId);
   
   const formatWeekRange = () => {
     const start = weekDays[0];
@@ -702,6 +729,7 @@ const WeeklyView = ({ date, events, tasks, staff, onNavigate, onToday, onAddEven
     <div className="weekly-view">
       <div className="view-header">
         <h2>Weekly Plan</h2>
+        <StaffFilter staff={staff} value={filterStaffId} onChange={onFilterStaffChange} />
         <SortDropdown value={eventSort} onChange={setEventSort} options={[{value: 'time', label: 'By Time'}, {value: 'person', label: 'By Person'}]} />
         <button className="btn-primary" onClick={() => onAddEvent()}><PlusIcon /> Add Event</button>
         <div className="date-nav-container">
@@ -717,8 +745,8 @@ const WeeklyView = ({ date, events, tasks, staff, onNavigate, onToday, onAddEven
       <div className="week-grid">
         {weekDays.map((d, i) => {
           const dateStr = formatDate(d);
-          let dayEvents = weeklyEvents.filter(e => isDateInEventRange(dateStr, e));
-          const dayTasks = tasks.filter(t => t.dueDate === dateStr && t.status !== 'completed');
+          let dayEvents = filteredEvents.filter(e => isDateInEventRange(dateStr, e));
+          const dayTasks = filteredTasks.filter(t => t.dueDate === dateStr && t.status !== 'completed');
           const isToday = formatDate(new Date()) === dateStr;
           
           // Sort events
@@ -746,11 +774,15 @@ const WeeklyView = ({ date, events, tasks, staff, onNavigate, onToday, onAddEven
                     </div>
                   );
                 })}
-                {dayTasks.map(task => (
-                  <div key={task.id} className={`week-task priority-${task.priority}`} onClick={(e) => handleItemClick(task, 'task', e)}>
-                    <span className="task-title-small">{task.title}</span>
-                  </div>
-                ))}
+                {dayTasks.map(task => {
+                  const assignee = staff.find(s => s.id === task.assignedTo);
+                  return (
+                    <div key={task.id} className={`week-task priority-${task.priority}`} onClick={(e) => handleItemClick(task, 'task', e)}>
+                      <span className="task-title-small">{task.title}</span>
+                      {assignee && <span className="task-assignee-small">{assignee.name}</span>}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );
@@ -763,7 +795,7 @@ const WeeklyView = ({ date, events, tasks, staff, onNavigate, onToday, onAddEven
 };
 
 // Monthly View
-const MonthlyView = ({ date, events, staff, onDateClick, onNavigate, onToday, onAddEvent }) => {
+const MonthlyView = ({ date, events, staff, filterStaffId, onFilterStaffChange, onDateClick, onNavigate, onToday, onAddEvent }) => {
   const year = date.getFullYear();
   const month = date.getMonth();
   const daysInMonth = getDaysInMonth(year, month);
@@ -771,9 +803,15 @@ const MonthlyView = ({ date, events, staff, onDateClick, onNavigate, onToday, on
   const today = new Date();
   const monthlyEvents = events.filter(e => e.showInMonthlyYearly !== false);
   
+  // Filter by staff
+  const filteredEvents = filterStaffId === 'all' ? monthlyEvents : monthlyEvents.filter(e => {
+    const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
+    return staffIds.includes(filterStaffId);
+  });
+  
   const getEventsForDay = (day) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return monthlyEvents.filter(e => isDateInEventRange(dateStr, e));
+    return filteredEvents.filter(e => isDateInEventRange(dateStr, e));
   };
   
   const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
@@ -809,6 +847,7 @@ const MonthlyView = ({ date, events, staff, onDateClick, onNavigate, onToday, on
     <div className="monthly-view">
       <div className="view-header">
         <h2>Monthly View</h2>
+        <StaffFilter staff={staff} value={filterStaffId} onChange={onFilterStaffChange} />
         <button className="btn-primary" onClick={() => onAddEvent()}><PlusIcon /> Add Event</button>
         <div className="date-nav-container">
           <button className="btn-today" onClick={onToday} disabled={isCurrentMonth}>This Month</button>
@@ -844,7 +883,11 @@ const StaffCalendarView = ({ year, staff, events, selectedStaffId, onSelectStaff
           {staff.map(s => (
             <div key={s.id} className={`staff-item ${selectedStaffId === s.id ? 'selected' : ''}`} onClick={() => onSelectStaff(s.id)}>
               <div className="staff-avatar" style={{ backgroundColor: s.color }}>{s.name.charAt(0)}</div>
-              <div className="staff-info"><span className="staff-name">{s.name}</span><span className="staff-position">{s.position}</span></div>
+              <div className="staff-info">
+                <span className="staff-name">{s.name}</span>
+                <span className="staff-name-short">{s.name.split(' ')[0]}</span>
+                <span className="staff-position">{s.position}</span>
+              </div>
               <div className="staff-actions">
                 <button onClick={(e) => { e.stopPropagation(); onEditStaff(s); }}><EditIcon /></button>
                 <button onClick={(e) => { e.stopPropagation(); onDeleteStaff(s.id); }}><TrashIcon /></button>
@@ -883,6 +926,7 @@ function App() {
   const [events, setEvents] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [selectedStaffId, setSelectedStaffId] = useState('all');
+  const [filterStaffId, setFilterStaffId] = useState('all');
   const [currentStaffId, setCurrentStaffId] = useState(() => {
     // Load from localStorage on initial render
     const saved = localStorage.getItem('planning_hub_current_staff');
@@ -1058,14 +1102,14 @@ function App() {
           <button className={`nav-tab ${activeView === 'daily' ? 'active' : ''}`} onClick={() => setActiveView('daily')}><ClockIcon /> Daily</button>
           <button className={`nav-tab ${activeView === 'weekly' ? 'active' : ''}`} onClick={() => setActiveView('weekly')}><ChartIcon /> Weekly</button>
           <button className={`nav-tab ${activeView === 'monthly' ? 'active' : ''}`} onClick={() => setActiveView('monthly')}><GridIcon /> Monthly</button>
-          <button className={`nav-tab ${activeView === 'staff' ? 'active' : ''}`} onClick={() => setActiveView('staff')}><CalendarIcon /> Staff Calendar</button>
+          <button className={`nav-tab ${activeView === 'staff' ? 'active' : ''}`} onClick={() => setActiveView('staff')}><CalendarIcon /> Calendar</button>
         </nav>
         
         <div className="header-right">
           <div className="logged-in-as">
             <UserIcon />
             <select value={currentStaffId || ''} onChange={e => setCurrentStaffId(Number(e.target.value))}>
-              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {staff.map(s => <option key={s.id} value={s.id}>{s.name.split(' ')[0]}</option>)}
             </select>
           </div>
           <div className={`sync-status ${syncStatus}`}>
@@ -1076,9 +1120,9 @@ function App() {
       </header>
       
       <main className="app-main">
-        {activeView === 'daily' && <DailyView date={currentDate} events={events} tasks={tasks} staff={staff} currentStaffId={currentStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onToggleEvent={handleToggleEvent} onNavigate={navigateDate} onToday={goToToday} />}
-        {activeView === 'weekly' && <WeeklyView date={currentDate} events={events} tasks={tasks} staff={staff} onNavigate={navigateDate} onToday={goToToday} onAddEvent={openAddEvent} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onDeleteEvent={handleDeleteEvent} onEditTask={openEditTask} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} />}
-        {activeView === 'monthly' && <MonthlyView date={currentDate} events={events} staff={staff} onDateClick={handleDayClick} onNavigate={navigateDate} onToday={goToToday} onAddEvent={openAddEvent} />}
+        {activeView === 'daily' && <DailyView date={currentDate} events={events} tasks={tasks} staff={staff} currentStaffId={currentStaffId} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onToggleEvent={handleToggleEvent} onNavigate={navigateDate} onToday={goToToday} />}
+        {activeView === 'weekly' && <WeeklyView date={currentDate} events={events} tasks={tasks} staff={staff} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onNavigate={navigateDate} onToday={goToToday} onAddEvent={openAddEvent} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onDeleteEvent={handleDeleteEvent} onEditTask={openEditTask} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} />}
+        {activeView === 'monthly' && <MonthlyView date={currentDate} events={events} staff={staff} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onDateClick={handleDayClick} onNavigate={navigateDate} onToday={goToToday} onAddEvent={openAddEvent} />}
         {activeView === 'staff' && <StaffCalendarView year={currentYear} staff={staff} events={events} selectedStaffId={selectedStaffId} onSelectStaff={setSelectedStaffId} onAddStaff={() => { setEditingStaff(null); setStaffModalOpen(true); }} onEditStaff={(s) => { setEditingStaff(s); setStaffModalOpen(true); }} onDeleteStaff={handleDeleteStaff} onDateClick={handleDayClick} onYearChange={setCurrentYear} onAddEvent={openAddEvent} />}
       </main>
       
