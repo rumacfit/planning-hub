@@ -112,13 +112,17 @@ body {
   position: relative;
 }
 
-.date-navigation {
-  position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
+/* Date Navigation - New Layout */
+.date-nav-container {
   display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.date-navigation {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
-  z-index: 10;
 }
 
 .date-navigation button {
@@ -140,6 +144,29 @@ body {
   border-color: var(--gray-300);
 }
 
+.btn-today {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--primary);
+  background: var(--white);
+  color: var(--primary);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-today:hover:not(:disabled) {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-today:disabled {
+  border-color: var(--gray-300);
+  color: var(--gray-400);
+  cursor: default;
+}
+
 /* Daily View */
 .daily-view, .weekly-view {
   background: var(--white);
@@ -155,6 +182,8 @@ body {
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--gray-100);
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .view-header h2 {
@@ -165,7 +194,10 @@ body {
 
 .current-date, .week-range {
   font-size: 0.875rem;
-  color: var(--gray-500);
+  color: var(--gray-700);
+  font-weight: 500;
+  min-width: 200px;
+  text-align: center;
 }
 
 .daily-content {
@@ -1011,6 +1043,26 @@ body {
   
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .view-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .date-nav-container {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .date-navigation {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .current-date, .week-range {
+    flex: 1;
   }
 }
 
