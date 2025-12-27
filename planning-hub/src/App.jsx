@@ -548,7 +548,7 @@ const StaffModal = ({ isOpen, onClose, onSave, staffMember }) => {
 };
 
 // Daily View Component
-const DailyView = ({ date, events, tasks, staff, onAddEvent, onAddTask, onEditEvent, onDeleteEvent }) => {
+const DailyView = ({ date, events, tasks, staff, onAddEvent, onAddTask, onEditEvent, onDeleteEvent, onNavigate, onToday }) => {
   const dateStr = formatDate(date);
   const dayEvents = events.filter(e => e.date === dateStr);
   const dayTasks = tasks.filter(t => t.dueDate === dateStr);
@@ -559,12 +559,21 @@ const DailyView = ({ date, events, tasks, staff, onAddEvent, onAddTask, onEditEv
     month: 'long', 
     day: 'numeric' 
   });
+
+  const isToday = formatDate(new Date()) === dateStr;
   
   return (
     <div className="daily-view">
       <div className="view-header">
         <h2>Daily Plan</h2>
-        <span className="current-date">{formattedDate}</span>
+        <div className="date-nav-container">
+          <button className="btn-today" onClick={onToday} disabled={isToday}>Today</button>
+          <div className="date-navigation">
+            <button onClick={() => onNavigate(-1)}><ChevronLeft /></button>
+            <span className="current-date">{formattedDate}</span>
+            <button onClick={() => onNavigate(1)}><ChevronRight /></button>
+          </div>
+        </div>
       </div>
       
       <div className="daily-content">
@@ -641,7 +650,7 @@ const DailyView = ({ date, events, tasks, staff, onAddEvent, onAddTask, onEditEv
 };
 
 // Weekly View Component
-const WeeklyView = ({ date, events, staff, onDateClick }) => {
+const WeeklyView = ({ date, events, staff, onDateClick, onNavigate, onToday }) => {
   const startOfWeek = new Date(date);
   const day = startOfWeek.getDay();
   startOfWeek.setDate(startOfWeek.getDate() - day);
@@ -658,12 +667,24 @@ const WeeklyView = ({ date, events, staff, onDateClick }) => {
     const end = weekDays[6];
     return `${MONTHS[start.getMonth()].slice(0, 3)} ${start.getDate()} - ${MONTHS[end.getMonth()].slice(0, 3)} ${end.getDate()}`;
   };
+
+  // Check if current week contains today
+  const today = new Date();
+  const todayStr = formatDate(today);
+  const isCurrentWeek = weekDays.some(d => formatDate(d) === todayStr);
   
   return (
     <div className="weekly-view">
       <div className="view-header">
         <h2>Weekly Plan</h2>
-        <span className="week-range">{formatWeekRange()}</span>
+        <div className="date-nav-container">
+          <button className="btn-today" onClick={onToday} disabled={isCurrentWeek}>This Week</button>
+          <div className="date-navigation">
+            <button onClick={() => onNavigate(-1)}><ChevronLeft /></button>
+            <span className="week-range">{formatWeekRange()}</span>
+            <button onClick={() => onNavigate(1)}><ChevronRight /></button>
+          </div>
+        </div>
       </div>
       
       <div className="week-grid">
@@ -894,6 +915,10 @@ function App() {
     }
     setCurrentDate(newDate);
   };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
   
   return (
     <div className="app">
@@ -926,13 +951,6 @@ function App() {
       </header>
       
       <main className="app-main">
-        {(activeView === 'daily' || activeView === 'weekly') && (
-          <div className="date-navigation">
-            <button onClick={() => navigateDate(-1)}><ChevronLeft /></button>
-            <button onClick={() => navigateDate(1)}><ChevronRight /></button>
-          </div>
-        )}
-        
         {activeView === 'daily' && (
           <DailyView
             date={currentDate}
@@ -943,6 +961,8 @@ function App() {
             onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }}
             onEditEvent={(event) => { setEditingEvent(event); setEventModalOpen(true); }}
             onDeleteEvent={handleDeleteEvent}
+            onNavigate={navigateDate}
+            onToday={goToToday}
           />
         )}
         
@@ -952,6 +972,8 @@ function App() {
             events={events}
             staff={staff}
             onDateClick={(d) => { setCurrentDate(d); setActiveView('daily'); }}
+            onNavigate={navigateDate}
+            onToday={goToToday}
           />
         )}
         
