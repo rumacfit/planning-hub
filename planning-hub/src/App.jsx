@@ -475,12 +475,17 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
   const today = new Date();
   const monthlyEvents = events.filter(e => e.showInMonthlyYearly !== false);
   
-  // Get events that START in this month (for display purposes)
-  const getEventsStartingInMonth = () => {
+  // Get events that are active in this month (start, end, or span through)
+  const getEventsInMonth = () => {
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+    
     return monthlyEvents.filter(e => {
-      const startDate = parseDate(e.startDate);
-      return startDate.getFullYear() === year && startDate.getMonth() === month;
-    }).filter(e => {
+      const eventStart = parseDate(e.startDate);
+      const eventEnd = e.endDate ? parseDate(e.endDate) : eventStart;
+      // Event overlaps with this month
+      const overlaps = eventStart <= monthEnd && eventEnd >= monthStart;
+      if (!overlaps) return false;
       if (selectedStaffId === 'all') return true;
       const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
       return staffIds.includes(selectedStaffId);
@@ -497,7 +502,21 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
     });
   };
   
-  const eventsThisMonth = getEventsStartingInMonth();
+  const eventsThisMonth = getEventsInMonth();
+  
+  // Format date range nicely
+  const formatEventDateRange = (e) => {
+    const start = parseDate(e.startDate);
+    const end = e.endDate ? parseDate(e.endDate) : start;
+    const duration = getEventDuration(e);
+    
+    const startStr = `${start.getDate()} ${MONTHS[start.getMonth()].slice(0, 3)}`;
+    
+    if (duration === 1) return startStr;
+    
+    const endStr = `${end.getDate()} ${MONTHS[end.getMonth()].slice(0, 3)}`;
+    return `${startStr} - ${endStr}`;
+  };
   
   const days = [];
   for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="mini-day empty" />);
@@ -528,22 +547,34 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
       <div className="mini-calendar-grid">{days}</div>
       {eventsThisMonth.length > 0 && (
         <div className="mini-calendar-events">
-          {eventsThisMonth.slice(0, 4).map(e => {
-            const color = getEventColor(e, staff);
-            const duration = getEventDuration(e);
-            const startDay = parseDate(e.startDate).getDate();
+          {eventsThisMonth.slice(0, 5).map(e => {
             const staffNames = getStaffNames(e, staff);
+            const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
+            const duration = getEventDuration(e);
+            
             return (
-              <div key={e.id} className="mini-event-item" style={{ backgroundColor: color }} onClick={() => onDateClick(e.startDate)}>
-                <span className="mini-event-title">{e.title}</span>
-                <span className="mini-event-dates">
-                  {startDay}{duration > 1 ? `-${parseDate(e.endDate).getDate()}` : ''}
-                  {staffNames.length > 0 && ` • ${staffNames[0]}`}
-                </span>
+              <div key={e.id} className="mini-event-item" onClick={() => onDateClick(e.startDate)}>
+                <div className="mini-event-colors">
+                  {staffIds.map((id, i) => {
+                    const s = staff.find(st => st.id === id);
+                    return s ? <span key={i} className="mini-event-color" style={{ backgroundColor: s.color }} /> : null;
+                  })}
+                  {staffIds.length === 0 && <span className="mini-event-color" style={{ backgroundColor: e.color || COLORS[0] }} />}
+                </div>
+                <div className="mini-event-info">
+                  <span className="mini-event-title">{e.title}</span>
+                  <span className="mini-event-meta">
+                    {formatEventDateRange(e)}
+                    {duration > 1 && ` (${duration} days)`}
+                  </span>
+                  {staffNames.length > 0 && (
+                    <span className="mini-event-staff">{staffNames.join(' & ')}</span>
+                  )}
+                </div>
               </div>
             );
           })}
-          {eventsThisMonth.length > 4 && <div className="mini-event-more">+{eventsThisMonth.length - 4} more</div>}
+          {eventsThisMonth.length > 5 && <div className="mini-event-more">+{eventsThisMonth.length - 5} more</div>}
         </div>
       )}
     </div>
