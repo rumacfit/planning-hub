@@ -524,17 +524,25 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
 };
 
 // Daily View
-const DailyView = ({ date, events, tasks, staff, currentStaffId, onAddEvent, onAddTask, onEditEvent, onEditTask, onDeleteEvent, onDeleteTask, onToggleTask, onNavigate, onToday }) => {
+const DailyView = ({ date, events, tasks, staff, currentStaffId, onAddEvent, onAddTask, onEditEvent, onEditTask, onDeleteEvent, onDeleteTask, onToggleTask, onToggleEvent, onNavigate, onToday }) => {
   const [eventSort, setEventSort] = useState('time');
   const [taskSort, setTaskSort] = useState('priority');
   
   const dateStr = formatDate(date);
-  const dailyEvents = events.filter(e => e.showInDailyWeekly !== false && isDateInEventRange(dateStr, e));
+  const dayEvents = events.filter(e => e.showInDailyWeekly !== false && isDateInEventRange(dateStr, e));
+  const pendingEvents = dayEvents.filter(e => e.status !== 'completed');
+  const completedEvents = dayEvents.filter(e => e.status === 'completed');
   const pendingTasks = tasks.filter(t => t.dueDate === dateStr && t.status !== 'completed');
   const completedTasks = tasks.filter(t => t.status === 'completed').sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
   
+  // Combine completed events and tasks
+  const allCompleted = [
+    ...completedEvents.map(e => ({ ...e, type: 'event' })),
+    ...completedTasks.map(t => ({ ...t, type: 'task' }))
+  ].sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+  
   // Sort events
-  const sortedEvents = [...dailyEvents].sort((a, b) => {
+  const sortedEvents = [...pendingEvents].sort((a, b) => {
     if (eventSort === 'time') return (a.startTime || '00:00').localeCompare(b.startTime || '00:00');
     if (eventSort === 'person') return (a.staffIds?.[0] || 999) - (b.staffIds?.[0] || 999);
     return 0;
@@ -582,6 +590,7 @@ const DailyView = ({ date, events, tasks, staff, currentStaffId, onAddEvent, onA
                 const duration = getEventDuration(event);
                 return (
                   <div key={event.id} className="event-card" style={{ borderLeftColor: color }}>
+                    <div className="event-checkbox"><input type="checkbox" onChange={() => onToggleEvent(event.id)} title="Mark as done" /></div>
                     <div className="event-main">
                       {event.startTime ? <div className="event-time">{event.startTime}{event.endTime ? ` - ${event.endTime}` : ''}</div> : <div className="event-time all-day">All Day</div>}
                       <div className="event-title">{event.title}</div>
@@ -629,20 +638,20 @@ const DailyView = ({ date, events, tasks, staff, currentStaffId, onAddEvent, onA
         </div>
       </div>
 
-      {completedTasks.length > 0 && (
+      {allCompleted.length > 0 && (
         <div className="completed-section">
           <div className="section-header"><h3><CheckIcon /> Completed</h3></div>
           <div className="completed-list">
-            {completedTasks.slice(0, 5).map(task => {
-              const staffMember = staff.find(s => s.id === task.assignedTo);
-              const completedBy = staff.find(s => s.id === task.completedBy);
-              const completedDate = task.completedAt ? new Date(task.completedAt) : null;
+            {allCompleted.slice(0, 10).map(item => {
+              const completedBy = staff.find(s => s.id === item.completedBy);
+              const completedDate = item.completedAt ? new Date(item.completedAt) : null;
+              const isEvent = item.type === 'event';
               return (
-                <div key={task.id} className="completed-task">
+                <div key={`${item.type}-${item.id}`} className="completed-task">
                   <div className="completed-check"><CheckIcon /></div>
                   <div className="completed-info">
-                    <span className="completed-title">{task.title}</span>
-                    {completedBy && <span className="completed-by">by {completedBy.name}</span>}
+                    <span className="completed-title">{item.title}</span>
+                    <span className="completed-type">{isEvent ? 'Event' : 'Task'}{completedBy ? ` • by ${completedBy.name}` : ''}</span>
                   </div>
                   {completedDate && <div className="completed-time">{completedDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>}
                 </div>
@@ -932,6 +941,23 @@ function App() {
       saveToFirebase({ staff, events: newEvents, tasks });
     }
   };
+
+  const handleToggleEvent = (id) => {
+    const newEvents = events.map(e => {
+      if (e.id === id) {
+        const newStatus = e.status === 'completed' ? 'pending' : 'completed';
+        return { 
+          ...e, 
+          status: newStatus, 
+          completedAt: newStatus === 'completed' ? new Date().toISOString() : null,
+          completedBy: newStatus === 'completed' ? currentStaffId : null
+        };
+      }
+      return e;
+    });
+    setEvents(newEvents);
+    saveToFirebase({ staff, events: newEvents, tasks });
+  };
   
   const handleSaveTask = (taskData) => {
     let newTasks;
@@ -1036,7 +1062,7 @@ function App() {
       </header>
       
       <main className="app-main">
-        {activeView === 'daily' && <DailyView date={currentDate} events={events} tasks={tasks} staff={staff} currentStaffId={currentStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onNavigate={navigateDate} onToday={goToToday} />}
+        {activeView === 'daily' && <DailyView date={currentDate} events={events} tasks={tasks} staff={staff} currentStaffId={currentStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onToggleEvent={handleToggleEvent} onNavigate={navigateDate} onToday={goToToday} />}
         {activeView === 'weekly' && <WeeklyView date={currentDate} events={events} tasks={tasks} staff={staff} onNavigate={navigateDate} onToday={goToToday} onAddEvent={openAddEvent} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onDeleteEvent={handleDeleteEvent} onEditTask={openEditTask} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} />}
         {activeView === 'monthly' && <MonthlyView date={currentDate} events={events} staff={staff} onDateClick={handleDayClick} onNavigate={navigateDate} onToday={goToToday} onAddEvent={openAddEvent} />}
         {activeView === 'staff' && <StaffCalendarView year={currentYear} staff={staff} events={events} selectedStaffId={selectedStaffId} onSelectStaff={setSelectedStaffId} onAddStaff={() => { setEditingStaff(null); setStaffModalOpen(true); }} onEditStaff={(s) => { setEditingStaff(s); setStaffModalOpen(true); }} onDeleteStaff={handleDeleteStaff} onDateClick={handleDayClick} onYearChange={setCurrentYear} onAddEvent={openAddEvent} />}
