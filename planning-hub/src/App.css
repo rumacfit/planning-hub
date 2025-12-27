@@ -50,6 +50,11 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 .sort-dropdown select { border: none; background: transparent; font-size: 0.75rem; color: var(--gray-700); cursor: pointer; }
 .sort-dropdown select:focus { outline: none; }
 
+/* Staff Filter Dropdown */
+.staff-filter { display: flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.625rem; background: var(--primary-light); border-radius: var(--radius); font-size: 0.75rem; color: var(--primary); }
+.staff-filter select { border: none; background: transparent; font-size: 0.75rem; color: var(--primary); cursor: pointer; font-weight: 500; }
+.staff-filter select:focus { outline: none; }
+
 /* Date Navigation */
 .date-nav-container { display: flex; align-items: center; gap: 1rem; }
 .date-navigation { display: flex; align-items: center; gap: 0.5rem; }
@@ -62,7 +67,7 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 /* Views */
 .daily-view, .weekly-view, .monthly-view { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 1.5rem; overflow: hidden; }
 .view-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--gray-100); flex-wrap: wrap; }
-.view-header h2 { font-size: 1.25rem; font-weight: 700; color: var(--gray-900); }
+.view-header h2 { font-size: 1.25rem; font-weight: 700; color: var(--gray-900); margin-right: auto; }
 .current-date, .week-range, .month-year { font-size: 0.875rem; color: var(--gray-700); font-weight: 500; min-width: 160px; text-align: center; }
 
 /* Daily Content */
@@ -133,7 +138,8 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 .week-task.priority-high { border-left-color: var(--danger); background: #FEF2F2; }
 .week-task.priority-medium { border-left-color: var(--warning); background: #FFFBEB; }
 .week-task.priority-low { border-left-color: var(--primary); background: var(--primary-light); }
-.task-title-small { color: var(--gray-700); }
+.task-title-small { color: var(--gray-700); display: block; }
+.task-assignee-small { color: var(--gray-500); font-size: 0.625rem; display: block; }
 
 /* Monthly View */
 .month-grid-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; margin-bottom: 0.5rem; }
@@ -224,6 +230,7 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 .staff-avatar.all-staff { background: linear-gradient(135deg, var(--primary), #8B5CF6); }
 .staff-info { flex: 1; min-width: 0; }
 .staff-name { display: block; font-weight: 600; color: var(--gray-800); font-size: 0.8125rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.staff-name-short { display: none; font-weight: 600; color: var(--gray-800); font-size: 0.8125rem; }
 .staff-position { display: block; font-size: 0.6875rem; color: var(--gray-500); }
 .staff-actions { display: flex; gap: 0.25rem; opacity: 0; transition: opacity 0.15s ease; }
 .staff-item:hover .staff-actions { opacity: 1; }
@@ -320,12 +327,18 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
     padding: 0.25rem 0.5rem; 
     font-size: 0.6875rem; 
   }
-  .logged-in-as select { font-size: 0.6875rem; max-width: 100px; }
+  .logged-in-as svg { display: none; }
+  .logged-in-as select { font-size: 0.6875rem; }
   .sync-status { 
     padding: 0.25rem 0.5rem; 
     font-size: 0.625rem; 
   }
   .sync-status span { display: none; }
+  
+  /* Staff filter mobile */
+  .staff-filter { padding: 0.25rem 0.5rem; font-size: 0.6875rem; }
+  .staff-filter svg { display: none; }
+  .staff-filter select { font-size: 0.6875rem; }
   .nav-tab { 
     padding: 0.5rem 0.5rem; 
     font-size: 0.6875rem; 
@@ -360,6 +373,8 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
   }
   .staff-item .staff-info { display: none; }
   .staff-item.selected .staff-info { display: block; }
+  .staff-item .staff-name { display: none; }
+  .staff-item .staff-name-short { display: block; }
   .staff-avatar { width: 28px; height: 28px; font-size: 0.75rem; }
   .calendar-main { 
     width: 100%; 
@@ -444,8 +459,12 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
   .week-day { min-height: 140px; padding: 0.5rem; }
   
   /* View headers */
-  .view-header { flex-direction: column; align-items: stretch; gap: 0.75rem; }
-  .view-header h2 { font-size: 1rem; }
+  .view-header { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+  .view-header h2 { font-size: 1rem; margin-right: 0; flex-basis: 100%; }
+  .view-header > .staff-filter { order: 1; }
+  .view-header > .sort-dropdown { order: 2; }
+  .view-header > .btn-primary { order: 3; }
+  .view-header > .date-nav-container { order: 4; flex-basis: 100%; }
   .date-nav-container { justify-content: center; flex-wrap: wrap; gap: 0.5rem; }
   .current-date, .week-range, .month-year { font-size: 0.75rem; min-width: auto; }
   .form-row { grid-template-columns: 1fr; }
