@@ -542,7 +542,7 @@ const DailyView = ({ date, events, tasks, staff, currentStaffId, filterStaffId, 
   const dateStr = formatDate(date);
   const dayEvents = events.filter(e => e.showInDailyWeekly !== false && isDateInEventRange(dateStr, e));
   
-  // Filter by staff
+  // Filter by staff for pending items
   const filteredEvents = filterStaffId === 'all' ? dayEvents : dayEvents.filter(e => {
     const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
     return staffIds.includes(filterStaffId);
@@ -550,14 +550,19 @@ const DailyView = ({ date, events, tasks, staff, currentStaffId, filterStaffId, 
   const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => t.assignedTo === filterStaffId);
   
   const pendingEvents = filteredEvents.filter(e => e.status !== 'completed');
-  const completedEvents = filteredEvents.filter(e => e.status === 'completed');
   const pendingTasks = filteredTasks.filter(t => t.dueDate === dateStr && t.status !== 'completed');
-  const completedTasks = filteredTasks.filter(t => t.status === 'completed').sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
   
-  // Combine completed events and tasks
+  // Completed section shows ALL completed items for TODAY (not filtered) - shared feed for everyone
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  
+  const allCompletedEvents = dayEvents.filter(e => e.status === 'completed' && e.completedAt && new Date(e.completedAt) >= todayStart);
+  const allCompletedTasks = tasks.filter(t => t.status === 'completed' && t.completedAt && new Date(t.completedAt) >= todayStart).sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+  
+  // Combine completed events and tasks - shared feed for everyone
   const allCompleted = [
-    ...completedEvents.map(e => ({ ...e, type: 'event' })),
-    ...completedTasks.map(t => ({ ...t, type: 'task' }))
+    ...allCompletedEvents.map(e => ({ ...e, type: 'event' })),
+    ...allCompletedTasks.map(t => ({ ...t, type: 'task' }))
   ].sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
   
   // Sort events
@@ -660,7 +665,7 @@ const DailyView = ({ date, events, tasks, staff, currentStaffId, filterStaffId, 
 
       {allCompleted.length > 0 && (
         <div className="completed-section">
-          <div className="section-header"><h3><CheckIcon /> Completed</h3></div>
+          <div className="section-header"><h3><CheckIcon /> Completed Today</h3></div>
           <div className="completed-list">
             {allCompleted.slice(0, 10).map(item => {
               const completedBy = staff.find(s => s.id === item.completedBy);
