@@ -468,29 +468,12 @@ const ItemPopup = ({ isOpen, onClose, item, type, staff, onEdit, onDelete, onTog
   );
 };
 
-// Mini Calendar for Year View - Improved
+// Mini Calendar for Year View - Events in cells
 const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick }) => {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
   const today = new Date();
   const monthlyEvents = events.filter(e => e.showInMonthlyYearly !== false);
-  
-  // Get events that are active in this month (start, end, or span through)
-  const getEventsInMonth = () => {
-    const monthStart = new Date(year, month, 1);
-    const monthEnd = new Date(year, month + 1, 0);
-    
-    return monthlyEvents.filter(e => {
-      const eventStart = parseDate(e.startDate);
-      const eventEnd = e.endDate ? parseDate(e.endDate) : eventStart;
-      // Event overlaps with this month
-      const overlaps = eventStart <= monthEnd && eventEnd >= monthStart;
-      if (!overlaps) return false;
-      if (selectedStaffId === 'all') return true;
-      const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
-      return staffIds.includes(selectedStaffId);
-    });
-  };
   
   const getEventsForDay = (day) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -500,22 +483,6 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
       const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
       return staffIds.includes(selectedStaffId);
     });
-  };
-  
-  const eventsThisMonth = getEventsInMonth();
-  
-  // Format date range nicely
-  const formatEventDateRange = (e) => {
-    const start = parseDate(e.startDate);
-    const end = e.endDate ? parseDate(e.endDate) : start;
-    const duration = getEventDuration(e);
-    
-    const startStr = `${start.getDate()} ${MONTHS[start.getMonth()].slice(0, 3)}`;
-    
-    if (duration === 1) return startStr;
-    
-    const endStr = `${end.getDate()} ${MONTHS[end.getMonth()].slice(0, 3)}`;
-    return `${startStr} - ${endStr}`;
   };
   
   const days = [];
@@ -530,10 +497,17 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
       <div key={day} className={`mini-day ${isToday ? 'today' : ''} ${dayEvents.length > 0 ? 'has-events' : ''}`} onClick={() => onDateClick(dateStr)}>
         <span className="mini-day-number">{day}</span>
         {dayEvents.length > 0 && (
-          <div className="mini-day-dots">
-            {dayEvents.slice(0, 3).map((e, i) => (
-              <span key={i} className="mini-dot" style={{ backgroundColor: getEventColor(e, staff) }} />
-            ))}
+          <div className="mini-day-events">
+            {dayEvents.slice(0, 2).map((e, i) => {
+              const color = getEventColor(e, staff);
+              const staffNames = getStaffNames(e, staff);
+              return (
+                <div key={i} className="mini-event-bar" style={{ backgroundColor: color }} title={`${e.title}${staffNames.length > 0 ? ' • ' + staffNames.join(', ') : ''}`}>
+                  <span className="mini-event-text">{e.title}</span>
+                </div>
+              );
+            })}
+            {dayEvents.length > 2 && <div className="mini-event-more">+{dayEvents.length - 2}</div>}
           </div>
         )}
       </div>
@@ -545,38 +519,6 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
       <div className="mini-calendar-header">{MONTHS[month]}</div>
       <div className="mini-calendar-days-header">{DAYS_SHORT.map((d, i) => <div key={i} className="day-header">{d}</div>)}</div>
       <div className="mini-calendar-grid">{days}</div>
-      {eventsThisMonth.length > 0 && (
-        <div className="mini-calendar-events">
-          {eventsThisMonth.slice(0, 5).map(e => {
-            const staffNames = getStaffNames(e, staff);
-            const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
-            const duration = getEventDuration(e);
-            
-            return (
-              <div key={e.id} className="mini-event-item" onClick={() => onDateClick(e.startDate)}>
-                <div className="mini-event-colors">
-                  {staffIds.map((id, i) => {
-                    const s = staff.find(st => st.id === id);
-                    return s ? <span key={i} className="mini-event-color" style={{ backgroundColor: s.color }} /> : null;
-                  })}
-                  {staffIds.length === 0 && <span className="mini-event-color" style={{ backgroundColor: e.color || COLORS[0] }} />}
-                </div>
-                <div className="mini-event-info">
-                  <span className="mini-event-title">{e.title}</span>
-                  <span className="mini-event-meta">
-                    {formatEventDateRange(e)}
-                    {duration > 1 && ` (${duration} days)`}
-                  </span>
-                  {staffNames.length > 0 && (
-                    <span className="mini-event-staff">{staffNames.join(' & ')}</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {eventsThisMonth.length > 5 && <div className="mini-event-more">+{eventsThisMonth.length - 5} more</div>}
-        </div>
-      )}
     </div>
   );
 };
@@ -844,7 +786,7 @@ const MonthlyView = ({ date, events, staff, onDateClick, onNavigate, onToday, on
             return (
               <div key={event.id} className="month-event-bar" style={{ backgroundColor: color }}>
                 <span className="month-event-title">{event.title}</span>
-                {staffNames.length > 0 && <span className="month-event-staff">• {staffNames[0]}</span>}
+                {staffNames.length > 0 && <span className="month-event-staff">• {staffNames.join(', ')}</span>}
               </div>
             );
           })}
