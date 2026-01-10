@@ -476,14 +476,139 @@ const MacroModal = ({ isOpen, onClose, onSave, dateStr, staffId, existingMacros,
   );
 };
 
+// Copy Icon
+const CopyIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
+
+// Copy Week Modal
+const CopyWeekModal = ({ isOpen, onClose, weekDays, events, macros, staff, filterStaffId, onCopy }) => {
+  const [selectedEvents, setSelectedEvents] = useState([]);
+  const [copyMacros, setCopyMacros] = useState(true);
+  
+  // Get events for this week that belong to the selected staff
+  const weekEvents = events.filter(e => {
+    if (e.showInDailyWeekly === false) return false;
+    const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
+    if (filterStaffId !== 'all' && !staffIds.some(id => String(id) === String(filterStaffId))) return false;
+    
+    // Check if event falls within this week
+    return weekDays.some(d => isDateInEventRange(formatDate(d), e));
+  });
+  
+  // Get macros for this week
+  const weekMacros = weekDays.map(d => {
+    const dateStr = formatDate(d);
+    const macroKey = `${dateStr}_${filterStaffId}`;
+    return { date: dateStr, day: d, macros: macros[macroKey] };
+  }).filter(m => m.macros && (m.macros.calories || m.macros.protein));
+  
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedEvents(weekEvents.map(e => e.id));
+      setCopyMacros(true);
+    }
+  }, [isOpen]);
+  
+  const toggleEvent = (id) => {
+    setSelectedEvents(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+  
+  const toggleAll = () => {
+    if (selectedEvents.length === weekEvents.length) {
+      setSelectedEvents([]);
+    } else {
+      setSelectedEvents(weekEvents.map(e => e.id));
+    }
+  };
+  
+  const handleCopy = () => {
+    const eventsToCopy = weekEvents.filter(e => selectedEvents.includes(e.id));
+    onCopy(eventsToCopy, copyMacros ? weekMacros : []);
+    onClose();
+  };
+  
+  const nextWeekStart = new Date(weekDays[0]);
+  nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+  const nextWeekEnd = new Date(weekDays[6]);
+  nextWeekEnd.setDate(nextWeekEnd.getDate() + 7);
+  const nextWeekRange = `${MONTHS[nextWeekStart.getMonth()].slice(0, 3)} ${nextWeekStart.getDate()} - ${nextWeekEnd.getDate()}`;
+  
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Copy to Next Week">
+      <div className="copy-week-content">
+        <p className="copy-week-subtitle">Copy selected items to <strong>{nextWeekRange}</strong></p>
+        
+        {filterStaffId === 'all' ? (
+          <p className="copy-week-warning">Please select a specific person to copy their week.</p>
+        ) : (
+          <>
+            {/* Macros Section */}
+            <div className="copy-section">
+              <label className="copy-section-header">
+                <input type="checkbox" checked={copyMacros} onChange={() => setCopyMacros(!copyMacros)} disabled={weekMacros.length === 0} />
+                <span>Macros ({weekMacros.length} days)</span>
+              </label>
+              {weekMacros.length > 0 && copyMacros && (
+                <div className="copy-macro-preview">
+                  {weekMacros.map(m => (
+                    <div key={m.date} className="copy-macro-day">
+                      <span className="copy-macro-day-name">{parseDate(m.date).toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                      <span className="copy-macro-values">{m.macros.calories} cal</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {weekMacros.length === 0 && <p className="copy-empty">No macros entered this week</p>}
+            </div>
+            
+            {/* Events Section */}
+            <div className="copy-section">
+              <label className="copy-section-header">
+                <input type="checkbox" checked={selectedEvents.length === weekEvents.length && weekEvents.length > 0} onChange={toggleAll} disabled={weekEvents.length === 0} />
+                <span>Events ({selectedEvents.length}/{weekEvents.length})</span>
+              </label>
+              {weekEvents.length > 0 ? (
+                <div className="copy-events-list">
+                  {weekEvents.map(event => {
+                    const color = getEventColor(event, staff);
+                    return (
+                      <label key={event.id} className="copy-event-item">
+                        <input type="checkbox" checked={selectedEvents.includes(event.id)} onChange={() => toggleEvent(event.id)} />
+                        <span className="copy-event-color" style={{ backgroundColor: color }}></span>
+                        <span className="copy-event-title">{event.title}</span>
+                        <span className="copy-event-date">{formatDisplayDate(event.startDate)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="copy-empty">No events this week</p>
+              )}
+            </div>
+          </>
+        )}
+        
+        <div className="modal-actions">
+          <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn-primary" onClick={handleCopy} disabled={filterStaffId === 'all' || (selectedEvents.length === 0 && !copyMacros)}>
+            <CopyIcon /> Copy to Next Week
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // Combined Planner View (Weekly + Daily)
-const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filterStaffId, onFilterStaffChange, onAddEvent, onAddTask, onEditEvent, onEditTask, onDeleteEvent, onDeleteTask, onToggleTask, onToggleEvent, onNavigate, onToday, onSaveMacros }) => {
+const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filterStaffId, onFilterStaffChange, onAddEvent, onAddTask, onEditEvent, onEditTask, onDeleteEvent, onDeleteTask, onToggleTask, onToggleEvent, onNavigate, onToday, onSaveMacros, onCopyWeek }) => {
   const [eventSort, setEventSort] = useState('time');
   const [taskSort, setTaskSort] = useState('priority');
   const [selectedItem, setSelectedItem] = useState(null);
   const [itemType, setItemType] = useState(null);
   const [macroModalOpen, setMacroModalOpen] = useState(false);
   const [macroDate, setMacroDate] = useState(null);
+  const [copyModalOpen, setCopyModalOpen] = useState(false);
   
   // Week calculations
   const startOfWeek = new Date(date);
@@ -574,14 +699,53 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
   // Get macro key for person+date
   const getMacroKey = (dateStr, staffId) => `${dateStr}_${staffId}`;
   
+  // Calculate weekly averages
+  const weeklyMacroStats = (() => {
+    if (filterStaffId === 'all') return null;
+    
+    let totalCals = 0, totalP = 0, totalC = 0, totalF = 0, daysWithData = 0;
+    
+    weekDays.forEach(d => {
+      const dayDateStr = formatDate(d);
+      const macroKey = getMacroKey(dayDateStr, filterStaffId);
+      const dayMacros = macros[macroKey];
+      
+      if (dayMacros && (dayMacros.calories || dayMacros.protein)) {
+        totalCals += parseFloat(dayMacros.calories) || 0;
+        totalP += parseFloat(dayMacros.protein) || 0;
+        totalC += parseFloat(dayMacros.carbs) || 0;
+        totalF += parseFloat(dayMacros.fats) || 0;
+        daysWithData++;
+      }
+    });
+    
+    if (daysWithData === 0) return null;
+    
+    return {
+      avgCals: Math.round(totalCals / daysWithData),
+      avgP: Math.round(totalP / daysWithData),
+      avgC: Math.round(totalC / daysWithData),
+      avgF: Math.round(totalF / daysWithData),
+      days: daysWithData
+    };
+  })();
+  
   return (
     <div className="planner-view">
       {/* Week Header */}
       <div className="planner-header">
         <h2>Planner</h2>
+        {weeklyMacroStats && (
+          <div className="weekly-macro-avg">
+            <span className="avg-label">Week Avg ({weeklyMacroStats.days}d):</span>
+            <span className="avg-cals">{weeklyMacroStats.avgCals}</span>
+            <span className="avg-macros">P{weeklyMacroStats.avgP} C{weeklyMacroStats.avgC} F{weeklyMacroStats.avgF}</span>
+          </div>
+        )}
         <StaffFilter staff={staff} value={filterStaffId} onChange={onFilterStaffChange} />
         <button className="btn-primary" onClick={() => onAddEvent()}><PlusIcon /> Event</button>
         <button className="btn-secondary" onClick={onAddTask}><PlusIcon /> Task</button>
+        <button className="btn-outline" onClick={() => setCopyModalOpen(true)} title="Copy to next week"><CopyIcon /> <span>Copy Week</span></button>
         <div className="date-nav-container">
           <button className="btn-today" onClick={onToday} disabled={isCurrentWeek}>This Week</button>
           <div className="date-navigation">
@@ -745,6 +909,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
       
       <ItemPopup isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} item={selectedItem} type={itemType} staff={staff} onEdit={itemType === 'event' ? onEditEvent : onEditTask} onDelete={itemType === 'event' ? onDeleteEvent : onDeleteTask} onToggle={onToggleTask} />
       <MacroModal isOpen={macroModalOpen} onClose={() => { setMacroModalOpen(false); setMacroDate(null); }} onSave={onSaveMacros} dateStr={macroDate} staffId={filterStaffId} existingMacros={macroDate && filterStaffId !== 'all' ? macros[`${macroDate}_${filterStaffId}`] : null} staff={staff} />
+      <CopyWeekModal isOpen={copyModalOpen} onClose={() => setCopyModalOpen(false)} weekDays={weekDays} events={events} macros={macros} staff={staff} filterStaffId={filterStaffId} onCopy={onCopyWeek} />
     </div>
   );
 };
@@ -1444,6 +1609,50 @@ function App() {
     setMacros(newMacros);
     saveToFirebase({ staff, events, tasks, macros: newMacros });
   };
+
+  const handleCopyWeek = (eventsToCopy, macrosToCopy) => {
+    let newEvents = [...events];
+    let newMacros = { ...macros };
+    
+    // Copy events with dates shifted by 7 days
+    eventsToCopy.forEach(event => {
+      const startDate = parseDate(event.startDate);
+      startDate.setDate(startDate.getDate() + 7);
+      const newStartDate = formatDate(startDate);
+      
+      let newEndDate = null;
+      if (event.endDate) {
+        const endDate = parseDate(event.endDate);
+        endDate.setDate(endDate.getDate() + 7);
+        newEndDate = formatDate(endDate);
+      }
+      
+      const newEvent = {
+        ...event,
+        id: Date.now() + Math.random(),
+        startDate: newStartDate,
+        endDate: newEndDate || newStartDate,
+        status: 'pending',
+        completedAt: null,
+        completedBy: null
+      };
+      newEvents.push(newEvent);
+    });
+    
+    // Copy macros with dates shifted by 7 days
+    macrosToCopy.forEach(({ date, macros: macroData }) => {
+      const newDate = parseDate(date);
+      newDate.setDate(newDate.getDate() + 7);
+      const newDateStr = formatDate(newDate);
+      // The staffId is stored in filterStaffId from the planner
+      const newMacroKey = `${newDateStr}_${filterStaffId}`;
+      newMacros[newMacroKey] = { ...macroData };
+    });
+    
+    setEvents(newEvents);
+    setMacros(newMacros);
+    saveToFirebase({ staff, events: newEvents, tasks, macros: newMacros });
+  };
   
   const handleDayClick = (dateStr) => { setDayPopupDate(dateStr); setDayPopupOpen(true); };
   
@@ -1494,7 +1703,7 @@ function App() {
       </header>
       
       <main className="app-main">
-        {activeView === 'planner' && <PlannerView date={currentDate} events={events} tasks={tasks} staff={staff} macros={macros} currentStaffId={currentStaffId} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onToggleEvent={handleToggleEvent} onNavigate={navigateDate} onToday={goToToday} onSaveMacros={handleSaveMacros} />}
+        {activeView === 'planner' && <PlannerView date={currentDate} events={events} tasks={tasks} staff={staff} macros={macros} currentStaffId={currentStaffId} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onToggleEvent={handleToggleEvent} onNavigate={navigateDate} onToday={goToToday} onSaveMacros={handleSaveMacros} onCopyWeek={handleCopyWeek} />}
         {activeView === 'monthly' && <MonthlyView date={currentDate} events={events} staff={staff} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onDateClick={handleDayClick} onNavigate={navigateDate} onToday={goToToday} onAddEvent={openAddEvent} />}
         {activeView === 'staff' && <StaffCalendarView year={currentYear} staff={staff} events={events} selectedStaffId={selectedStaffId} onSelectStaff={setSelectedStaffId} onAddStaff={() => { setEditingStaff(null); setStaffModalOpen(true); }} onEditStaff={(s) => { setEditingStaff(s); setStaffModalOpen(true); }} onDeleteStaff={handleDeleteStaff} onDateClick={handleDayClick} onYearChange={setCurrentYear} onAddEvent={openAddEvent} />}
       </main>
