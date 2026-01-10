@@ -89,12 +89,16 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 .week-event-more { font-size: 0.5625rem; color: var(--gray-500); padding: 2px 4px; }
 
 /* Macro Section */
-.week-day-macros { padding: 0.375rem 0.5rem; background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%); border-radius: var(--radius) var(--radius) 0 0; min-height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; }
+.week-day-macros { padding: 0.5rem; background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%); border-radius: var(--radius) var(--radius) 0 0; min-height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; }
 .week-day-macros:hover { background: linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%); }
-.macro-display { display: flex; flex-direction: column; align-items: center; gap: 0; line-height: 1.2; }
-.macro-cal { font-size: 0.75rem; font-weight: 700; color: var(--success); }
-.macro-details { font-size: 0.5rem; color: var(--gray-600); font-weight: 500; }
-.macro-add { font-size: 0.625rem; color: var(--success); font-weight: 500; }
+.macro-display { display: flex; align-items: center; gap: 0.375rem; }
+.macro-cal { font-size: 0.875rem; font-weight: 700; color: var(--success); }
+.macro-divider { color: var(--gray-300); font-weight: 300; }
+.macro-details { font-size: 0.6875rem; color: var(--gray-600); font-weight: 500; }
+.macro-add { font-size: 0.6875rem; color: var(--success); font-weight: 500; }
+
+/* Week task small */
+.week-task-small { padding: 0.25rem 0.375rem; border-radius: 3px; font-size: 0.625rem; background: var(--warning); background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border-left: 2px solid var(--warning); }
 
 /* Planner Daily */
 .planner-daily { background: var(--gray-50); border-radius: var(--radius); padding: 1rem; }
@@ -524,10 +528,11 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
   .planner-week .week-day-header .day-number { font-size: 0.75rem; }
   .planner-week .week-day-events { padding: 0.25rem; }
   .planner-week .week-event { padding: 2px 3px; font-size: 0.5rem; }
-  .week-day-macros { padding: 0.25rem; min-height: 28px; }
-  .macro-cal { font-size: 0.625rem; }
-  .macro-details { font-size: 0.4375rem; }
-  .macro-add { font-size: 0.5rem; }
+  .week-day-macros { padding: 0.375rem; min-height: 28px; }
+  .macro-cal { font-size: 0.75rem; }
+  .macro-details { font-size: 0.5625rem; }
+  .macro-add { font-size: 0.5625rem; }
+  .macro-divider { display: none; }
   
   .planner-daily .daily-content { grid-template-columns: 1fr; }
   .planner-daily .tasks-section { border-left: none; border-top: 1px solid var(--gray-200); padding-left: 0; padding-top: 1rem; }
@@ -551,7 +556,7 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
   .planner-week .week-day { min-height: 80px; }
   .planner-week .week-day-header .day-name { font-size: 0.4375rem; }
   .planner-week .week-day-header .day-number { font-size: 0.625rem; }
-  .week-day-macros { min-height: 24px; padding: 2px; }
-  .macro-cal { font-size: 0.5625rem; }
-  .macro-details { display: none; }
+  .week-day-macros { min-height: 22px; padding: 2px; }
+  .macro-cal { font-size: 0.625rem; }
+  .macro-details { font-size: 0.4375rem; }
 }
