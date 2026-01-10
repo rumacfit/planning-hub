@@ -491,6 +491,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
     const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
     return staffIds.includes(filterStaffId);
   });
+  const filteredWeeklyTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => t.assignedTo === filterStaffId);
   
   const pendingEvents = filteredEvents.filter(e => e.status !== 'completed');
   const pendingTasks = filteredTasks.filter(t => t.dueDate === dateStr && t.status !== 'completed');
@@ -560,6 +561,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
           {weekDays.map((d, i) => {
             const dayDateStr = formatDate(d);
             let dayEvts = filteredWeeklyEvents.filter(e => isDateInEventRange(dayDateStr, e));
+            const dayTsks = filteredWeeklyTasks.filter(t => t.dueDate === dayDateStr && t.status !== 'completed');
             const isToday = todayStr === dayDateStr;
             const isSelected = dateStr === dayDateStr;
             const dayMacros = macros[dayDateStr];
@@ -572,6 +574,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
                   {hasMacros ? (
                     <div className="macro-display">
                       <span className="macro-cal">{dayMacros.calories || '-'}</span>
+                      <span className="macro-divider">|</span>
                       <span className="macro-details">P{dayMacros.protein || 0} C{dayMacros.carbs || 0} F{dayMacros.fats || 0}</span>
                     </div>
                   ) : (
@@ -584,7 +587,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
                   <span className="day-number">{d.getDate()}</span>
                 </div>
                 <div className="week-day-events">
-                  {dayEvts.slice(0, 3).map(event => {
+                  {dayEvts.slice(0, 2).map(event => {
                     const color = getEventColor(event, staff);
                     return (
                       <div key={event.id} className="week-event" style={{ backgroundColor: `${color}20`, borderLeft: `3px solid ${color}` }} onClick={(e) => handleItemClick(event, 'event', e)}>
@@ -592,7 +595,12 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
                       </div>
                     );
                   })}
-                  {dayEvts.length > 3 && <div className="week-event-more">+{dayEvts.length - 3}</div>}
+                  {dayTsks.slice(0, 1).map(task => (
+                    <div key={task.id} className="week-task-small" onClick={(e) => handleItemClick(task, 'task', e)}>
+                      <span className="task-title-small">{task.title}</span>
+                    </div>
+                  ))}
+                  {(dayEvts.length + dayTsks.length) > 3 && <div className="week-event-more">+{dayEvts.length + dayTsks.length - 3}</div>}
                 </div>
               </div>
             );
