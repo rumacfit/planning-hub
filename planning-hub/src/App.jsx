@@ -413,6 +413,23 @@ const MacroModal = ({ isOpen, onClose, onSave, dateStr, staffId, existingMacros,
     }
   }, [existingMacros, isOpen]);
   
+  // Auto-calculate calories when macros change
+  const updateMacro = (field, value) => {
+    const newData = { ...formData, [field]: value };
+    
+    // Calculate calories from macros
+    const protein = parseFloat(newData.protein) || 0;
+    const carbs = parseFloat(newData.carbs) || 0;
+    const fats = parseFloat(newData.fats) || 0;
+    const calculatedCalories = Math.round((protein * 4) + (carbs * 4) + (fats * 9));
+    
+    if (protein || carbs || fats) {
+      newData.calories = calculatedCalories.toString();
+    }
+    
+    setFormData(newData);
+  };
+  
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(dateStr, staffId, formData);
@@ -431,23 +448,24 @@ const MacroModal = ({ isOpen, onClose, onSave, dateStr, staffId, existingMacros,
             {staffMember.name}
           </div>
         )}
-        <div className="form-group">
-          <label>Calories</label>
-          <input type="number" value={formData.calories} onChange={e => setFormData({...formData, calories: e.target.value})} placeholder="e.g. 2000" />
-        </div>
-        <div className="form-row">
+        <div className="form-row macro-inputs">
           <div className="form-group">
             <label>Protein (g)</label>
-            <input type="number" value={formData.protein} onChange={e => setFormData({...formData, protein: e.target.value})} placeholder="e.g. 150" />
+            <input type="number" value={formData.protein} onChange={e => updateMacro('protein', e.target.value)} placeholder="150" />
           </div>
           <div className="form-group">
             <label>Carbs (g)</label>
-            <input type="number" value={formData.carbs} onChange={e => setFormData({...formData, carbs: e.target.value})} placeholder="e.g. 200" />
+            <input type="number" value={formData.carbs} onChange={e => updateMacro('carbs', e.target.value)} placeholder="200" />
           </div>
           <div className="form-group">
             <label>Fats (g)</label>
-            <input type="number" value={formData.fats} onChange={e => setFormData({...formData, fats: e.target.value})} placeholder="e.g. 70" />
+            <input type="number" value={formData.fats} onChange={e => updateMacro('fats', e.target.value)} placeholder="70" />
           </div>
+        </div>
+        <div className="form-group calories-display">
+          <label>Calories</label>
+          <div className="calculated-calories">{formData.calories || '0'}</div>
+          <span className="calories-note">Auto-calculated from macros</span>
         </div>
         <div className="modal-actions">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
