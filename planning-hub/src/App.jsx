@@ -46,13 +46,13 @@ const getEventDuration = (event) => {
 
 const getStaffNames = (event, staff) => {
   const staffIds = event.staffIds || (event.staffId ? [event.staffId] : []);
-  return staffIds.map(id => staff.find(s => s.id === id)?.name).filter(Boolean);
+  return staffIds.map(id => staff.find(s => String(s.id) === String(id))?.name).filter(Boolean);
 };
 
 const getEventColor = (event, staff) => {
   const staffIds = event.staffIds || (event.staffId ? [event.staffId] : []);
   if (staffIds.length > 0) {
-    const firstStaff = staff.find(s => s.id === staffIds[0]);
+    const firstStaff = staff.find(s => String(s.id) === String(staffIds[0]));
     return firstStaff?.color || event.color || COLORS[0];
   }
   return event.color || COLORS[0];
@@ -88,11 +88,12 @@ const Modal = ({ isOpen, onClose, title, children, size = 'normal' }) => {
 
 // Staff Picker
 const StaffPicker = ({ staff, selectedIds, onChange, single = false }) => {
+  const isSelected = (id) => selectedIds.some(sid => String(sid) === String(id));
   const toggleStaff = (id) => {
     if (single) {
-      onChange(selectedIds.includes(id) ? [] : [id]);
+      onChange(isSelected(id) ? [] : [id]);
     } else {
-      if (selectedIds.includes(id)) onChange(selectedIds.filter(i => i !== id));
+      if (isSelected(id)) onChange(selectedIds.filter(i => String(i) !== String(id)));
       else onChange([...selectedIds, id]);
     }
   };
@@ -101,8 +102,8 @@ const StaffPicker = ({ staff, selectedIds, onChange, single = false }) => {
       <label>Assign To</label>
       <div className="staff-picker-list">
         {staff.map(s => (
-          <label key={s.id} className={`staff-picker-item ${selectedIds.includes(s.id) ? 'selected' : ''}`}>
-            <input type="checkbox" checked={selectedIds.includes(s.id)} onChange={() => toggleStaff(s.id)} />
+          <label key={s.id} className={`staff-picker-item ${isSelected(s.id) ? 'selected' : ''}`}>
+            <input type="checkbox" checked={isSelected(s.id)} onChange={() => toggleStaff(s.id)} />
             <span className="staff-picker-avatar" style={{ backgroundColor: s.color }}>{s.name.charAt(0)}</span>
             <span className="staff-picker-name">{s.name}</span>
           </label>
@@ -126,9 +127,9 @@ const SortDropdown = ({ value, onChange, options }) => (
 const StaffFilter = ({ staff, value, onChange }) => (
   <div className="staff-filter">
     <UserIcon />
-    <select value={value} onChange={e => onChange(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+    <select value={value} onChange={e => onChange(e.target.value)}>
       <option value="all">All</option>
-      {staff.map(s => <option key={s.id} value={s.id}>{s.name.split(' ')[0]}</option>)}
+      {staff.map(s => <option key={s.id} value={String(s.id)}>{s.name.split(' ')[0]}</option>)}
     </select>
   </div>
 );
@@ -171,7 +172,7 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate, isSimp
     e.preventDefault();
     let color = formData.color;
     if (formData.staffIds.length > 0) {
-      const firstStaff = staff.find(s => s.id === formData.staffIds[0]);
+      const firstStaff = staff.find(s => String(s.id) === String(formData.staffIds[0]));
       if (firstStaff) color = firstStaff.color;
     }
     const saveData = {
@@ -396,7 +397,7 @@ const StaffModal = ({ isOpen, onClose, onSave, staffMember }) => {
 };
 
 // Macro Modal
-const MacroModal = ({ isOpen, onClose, onSave, dateStr, existingMacros }) => {
+const MacroModal = ({ isOpen, onClose, onSave, dateStr, staffId, existingMacros, staff }) => {
   const [formData, setFormData] = useState({ calories: '', protein: '', carbs: '', fats: '' });
   
   useEffect(() => {
@@ -409,16 +410,22 @@ const MacroModal = ({ isOpen, onClose, onSave, dateStr, existingMacros }) => {
   
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(dateStr, formData);
+    onSave(dateStr, staffId, formData);
     onClose();
   };
   
   const date = dateStr ? parseDate(dateStr) : new Date();
   const formattedDate = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const staffMember = staff?.find(s => String(s.id) === String(staffId));
   
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Macros - ${formattedDate}`} size="small">
       <form onSubmit={handleSubmit} className="modal-form">
+        {staffMember && (
+          <div className="macro-staff-badge" style={{ backgroundColor: `${staffMember.color}20`, borderLeft: `3px solid ${staffMember.color}` }}>
+            {staffMember.name}
+          </div>
+        )}
         <div className="form-group">
           <label>Calories</label>
           <input type="number" value={formData.calories} onChange={e => setFormData({...formData, calories: e.target.value})} placeholder="e.g. 2000" />
@@ -484,14 +491,14 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
   // Filter by staff for pending items
   const filteredEvents = filterStaffId === 'all' ? dayEvents : dayEvents.filter(e => {
     const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
-    return staffIds.includes(filterStaffId);
+    return staffIds.some(id => String(id) === String(filterStaffId));
   });
-  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => t.assignedTo === filterStaffId);
+  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => String(t.assignedTo) === String(filterStaffId));
   const filteredWeeklyEvents = filterStaffId === 'all' ? weeklyEvents : weeklyEvents.filter(e => {
     const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
-    return staffIds.includes(filterStaffId);
+    return staffIds.some(id => String(id) === String(filterStaffId));
   });
-  const filteredWeeklyTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => t.assignedTo === filterStaffId);
+  const filteredWeeklyTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => String(t.assignedTo) === String(filterStaffId));
   
   const pendingEvents = filteredEvents.filter(e => e.status !== 'completed');
   const pendingTasks = filteredTasks.filter(t => t.dueDate === dateStr && t.status !== 'completed');
@@ -531,11 +538,18 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
     setItemType(type);
   };
   
-  const handleMacroClick = (dateStr, e) => {
+  const handleMacroClick = (dateStr, staffId, e) => {
     e.stopPropagation();
+    if (staffId === 'all') {
+      alert('Please select a specific person to add macros');
+      return;
+    }
     setMacroDate(dateStr);
     setMacroModalOpen(true);
   };
+  
+  // Get macro key for person+date
+  const getMacroKey = (dateStr, staffId) => `${dateStr}_${staffId}`;
   
   return (
     <div className="planner-view">
@@ -564,14 +578,19 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
             const dayTsks = filteredWeeklyTasks.filter(t => t.dueDate === dayDateStr && t.status !== 'completed');
             const isToday = todayStr === dayDateStr;
             const isSelected = dateStr === dayDateStr;
-            const dayMacros = macros[dayDateStr];
+            
+            // Get macros for current filter person
+            const macroKey = filterStaffId !== 'all' ? getMacroKey(dayDateStr, filterStaffId) : null;
+            const dayMacros = macroKey ? macros[macroKey] : null;
             const hasMacros = dayMacros && (dayMacros.calories || dayMacros.protein);
             
             return (
               <div key={i} className={`week-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`} onClick={() => onNavigate(0, d)}>
                 {/* Macro Section */}
-                <div className="week-day-macros" onClick={(e) => handleMacroClick(dayDateStr, e)}>
-                  {hasMacros ? (
+                <div className={`week-day-macros ${filterStaffId === 'all' ? 'disabled' : ''}`} onClick={(e) => handleMacroClick(dayDateStr, filterStaffId, e)}>
+                  {filterStaffId === 'all' ? (
+                    <span className="macro-hint">Select person</span>
+                  ) : hasMacros ? (
                     <div className="macro-display">
                       <span className="macro-cal">{dayMacros.calories || '-'}</span>
                       <span className="macro-divider">|</span>
@@ -656,7 +675,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
             {sortedTasks.length === 0 ? <p className="empty-state">No tasks</p> : (
               <div className="tasks-list">
                 {sortedTasks.map(task => {
-                  const staffMember = staff.find(s => s.id === task.assignedTo);
+                  const staffMember = staff.find(s => String(s.id) === String(task.assignedTo));
                   return (
                     <div key={task.id} className="task-card">
                       <div className="task-checkbox"><input type="checkbox" onChange={() => onToggleTask(task.id)} /></div>
@@ -682,7 +701,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
             <div className="section-header"><h4><CheckIcon /> Completed Today</h4></div>
             <div className="completed-list">
               {allCompleted.slice(0, 10).map(item => {
-                const completedBy = staff.find(s => s.id === item.completedBy);
+                const completedBy = staff.find(s => String(s.id) === String(item.completedBy));
                 const completedDate = item.completedAt ? new Date(item.completedAt) : null;
                 const isEvent = item.type === 'event';
                 return (
@@ -702,7 +721,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
       </div>
       
       <ItemPopup isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} item={selectedItem} type={itemType} staff={staff} onEdit={itemType === 'event' ? onEditEvent : onEditTask} onDelete={itemType === 'event' ? onDeleteEvent : onDeleteTask} onToggle={onToggleTask} />
-      <MacroModal isOpen={macroModalOpen} onClose={() => { setMacroModalOpen(false); setMacroDate(null); }} onSave={onSaveMacros} dateStr={macroDate} existingMacros={macroDate ? macros[macroDate] : null} />
+      <MacroModal isOpen={macroModalOpen} onClose={() => { setMacroModalOpen(false); setMacroDate(null); }} onSave={onSaveMacros} dateStr={macroDate} staffId={filterStaffId} existingMacros={macroDate && filterStaffId !== 'all' ? macros[`${macroDate}_${filterStaffId}`] : null} staff={staff} />
     </div>
   );
 };
@@ -750,7 +769,7 @@ const DayPopup = ({ isOpen, onClose, dateStr, events, staff, onAddEvent, onEditE
 const ItemPopup = ({ isOpen, onClose, item, type, staff, onEdit, onDelete, onToggle }) => {
   if (!isOpen || !item) return null;
   const staffNames = type === 'event' ? getStaffNames(item, staff) : [];
-  const assignee = type === 'task' ? staff.find(s => s.id === item.assignedTo) : null;
+  const assignee = type === 'task' ? staff.find(s => String(s.id) === String(item.assignedTo)) : null;
   const color = type === 'event' ? getEventColor(item, staff) : '#3B82F6';
   
   return (
@@ -805,7 +824,7 @@ const MiniCalendar = ({ year, month, events, selectedStaffId, staff, onDateClick
       if (!isDateInEventRange(dateStr, e)) return false;
       if (selectedStaffId === 'all') return true;
       const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
-      return staffIds.includes(selectedStaffId);
+      return staffIds.some(id => String(id) === String(selectedStaffId));
     });
   };
   
@@ -858,9 +877,9 @@ const DailyView = ({ date, events, tasks, staff, currentStaffId, filterStaffId, 
   // Filter by staff for pending items
   const filteredEvents = filterStaffId === 'all' ? dayEvents : dayEvents.filter(e => {
     const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
-    return staffIds.includes(filterStaffId);
+    return staffIds.some(id => String(id) === String(filterStaffId));
   });
-  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => t.assignedTo === filterStaffId);
+  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => String(t.assignedTo) === String(filterStaffId));
   
   const pendingEvents = filteredEvents.filter(e => e.status !== 'completed');
   const pendingTasks = filteredTasks.filter(t => t.dueDate === dateStr && t.status !== 'completed');
@@ -955,7 +974,7 @@ const DailyView = ({ date, events, tasks, staff, currentStaffId, filterStaffId, 
           {sortedTasks.length === 0 ? <p className="empty-state">No tasks</p> : (
             <div className="tasks-list">
               {sortedTasks.map(task => {
-                const staffMember = staff.find(s => s.id === task.assignedTo);
+                const staffMember = staff.find(s => String(s.id) === String(task.assignedTo));
                 return (
                   <div key={task.id} className="task-card">
                     <div className="task-checkbox"><input type="checkbox" onChange={() => onToggleTask(task.id)} /></div>
@@ -981,7 +1000,7 @@ const DailyView = ({ date, events, tasks, staff, currentStaffId, filterStaffId, 
           <div className="section-header"><h3><CheckIcon /> Completed Today</h3></div>
           <div className="completed-list">
             {allCompleted.slice(0, 10).map(item => {
-              const completedBy = staff.find(s => s.id === item.completedBy);
+              const completedBy = staff.find(s => String(s.id) === String(item.completedBy));
               const completedDate = item.completedAt ? new Date(item.completedAt) : null;
               const isEvent = item.type === 'event';
               return (
@@ -1024,9 +1043,9 @@ const WeeklyView = ({ date, events, tasks, staff, filterStaffId, onFilterStaffCh
   // Filter by staff
   const filteredEvents = filterStaffId === 'all' ? weeklyEvents : weeklyEvents.filter(e => {
     const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
-    return staffIds.includes(filterStaffId);
+    return staffIds.some(id => String(id) === String(filterStaffId));
   });
-  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => t.assignedTo === filterStaffId);
+  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => String(t.assignedTo) === String(filterStaffId));
   
   const formatWeekRange = () => {
     const start = weekDays[0];
@@ -1093,7 +1112,7 @@ const WeeklyView = ({ date, events, tasks, staff, filterStaffId, onFilterStaffCh
                   );
                 })}
                 {dayTasks.map(task => {
-                  const assignee = staff.find(s => s.id === task.assignedTo);
+                  const assignee = staff.find(s => String(s.id) === String(task.assignedTo));
                   return (
                     <div key={task.id} className={`week-task priority-${task.priority}`} onClick={(e) => handleItemClick(task, 'task', e)}>
                       <span className="task-title-small">{task.title}</span>
@@ -1124,7 +1143,7 @@ const MonthlyView = ({ date, events, staff, filterStaffId, onFilterStaffChange, 
   // Filter by staff
   const filteredEvents = filterStaffId === 'all' ? monthlyEvents : monthlyEvents.filter(e => {
     const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
-    return staffIds.includes(filterStaffId);
+    return staffIds.some(id => String(id) === String(filterStaffId));
   });
   
   const getEventsForDay = (day) => {
@@ -1184,7 +1203,7 @@ const MonthlyView = ({ date, events, staff, filterStaffId, onFilterStaffChange, 
 
 // Staff Calendar View
 const StaffCalendarView = ({ year, staff, events, selectedStaffId, onSelectStaff, onAddStaff, onEditStaff, onDeleteStaff, onDateClick, onYearChange, onAddEvent }) => {
-  const selectedStaff = selectedStaffId === 'all' ? null : staff.find(s => s.id === selectedStaffId);
+  const selectedStaff = selectedStaffId === 'all' ? null : staff.find(s => String(s.id) === String(selectedStaffId));
   
   return (
     <div className="staff-calendar-view">
@@ -1377,7 +1396,7 @@ function App() {
   const handleSaveStaff = (staffData) => {
     let newStaff;
     if (editingStaff) {
-      newStaff = staff.map(s => s.id === editingStaff.id ? { ...staffData, id: s.id } : s);
+      newStaff = staff.map(s => String(s.id) === String(editingStaff.id) ? { ...staffData, id: s.id } : s);
     } else {
       newStaff = [...staff, { ...staffData, id: Date.now() }];
     }
@@ -1396,8 +1415,9 @@ function App() {
     }
   };
 
-  const handleSaveMacros = (dateStr, macroData) => {
-    const newMacros = { ...macros, [dateStr]: macroData };
+  const handleSaveMacros = (dateStr, staffId, macroData) => {
+    const macroKey = `${dateStr}_${staffId}`;
+    const newMacros = { ...macros, [macroKey]: macroData };
     setMacros(newMacros);
     saveToFirebase({ staff, events, tasks, macros: newMacros });
   };
@@ -1422,7 +1442,7 @@ function App() {
   const openAddEvent = (initialDate = null) => { setEditingEvent(null); setEventInitialDate(initialDate || formatDate(currentDate)); setEventModalOpen(true); };
   const openEditTask = (task) => { setEditingTask(task); setTaskModalOpen(true); };
   
-  const currentStaffMember = staff.find(s => s.id === currentStaffId);
+  const currentStaffMember = staff.find(s => String(s.id) === String(currentStaffId));
   
   if (!isLoaded) return <div className="loading">Loading...</div>;
   
