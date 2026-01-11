@@ -593,74 +593,139 @@ const IngredientModal = ({ isOpen, onClose, onSave, ingredient }) => {
 };
 
 // Add Food Modal
-const AddFoodModal = ({ isOpen, onClose, onSave, ingredients, mealSlot }) => {
+const AddFoodModal = ({ isOpen, onClose, onSave, ingredients, recipes, mealSlot }) => {
+  const [activeTab, setActiveTab] = useState('ingredients');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedIngredient, setSelectedIngredient] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [servingSize, setServingSize] = useState(100);
+  const [servings, setServings] = useState(1);
   
   useEffect(() => {
     if (isOpen) {
       setSearchTerm('');
-      setSelectedIngredient(null);
+      setSelectedItem(null);
       setServingSize(100);
+      setServings(1);
+      setActiveTab('ingredients');
     }
   }, [isOpen]);
   
-  const filteredIngredients = ingredients.filter(i => 
+  const filteredIngredients = (ingredients || []).filter(i => 
     i.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
+  const filteredRecipes = (recipes || []).filter(r => 
+    r.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
   const calculateMacros = () => {
-    if (!selectedIngredient) return { calories: 0, protein: 0, carbs: 0, fats: 0 };
-    const multiplier = servingSize / 100;
-    return {
-      calories: Math.round(selectedIngredient.calories * multiplier),
-      protein: Math.round(selectedIngredient.protein * multiplier * 10) / 10,
-      carbs: Math.round(selectedIngredient.carbs * multiplier * 10) / 10,
-      fats: Math.round(selectedIngredient.fats * multiplier * 10) / 10
-    };
+    if (!selectedItem) return { calories: 0, protein: 0, carbs: 0, fats: 0 };
+    
+    if (activeTab === 'ingredients') {
+      const multiplier = servingSize / 100;
+      return {
+        calories: Math.round(selectedItem.calories * multiplier),
+        protein: Math.round(selectedItem.protein * multiplier * 10) / 10,
+        carbs: Math.round(selectedItem.carbs * multiplier * 10) / 10,
+        fats: Math.round(selectedItem.fats * multiplier * 10) / 10
+      };
+    } else {
+      // Recipe - use perServing macros
+      const ps = selectedItem.perServing || { calories: 0, protein: 0, carbs: 0, fats: 0 };
+      return {
+        calories: Math.round(ps.calories * servings),
+        protein: Math.round(ps.protein * servings * 10) / 10,
+        carbs: Math.round(ps.carbs * servings * 10) / 10,
+        fats: Math.round(ps.fats * servings * 10) / 10
+      };
+    }
   };
   
   const handleSubmit = () => {
-    if (!selectedIngredient) return;
+    if (!selectedItem) return;
     const macros = calculateMacros();
-    onSave({
-      id: Date.now(),
-      ingredientId: selectedIngredient.id,
-      name: selectedIngredient.name,
-      amount: servingSize,
-      ...macros
-    });
+    
+    if (activeTab === 'ingredients') {
+      onSave({
+        id: Date.now(),
+        ingredientId: selectedItem.id,
+        name: selectedItem.name,
+        amount: servingSize,
+        isRecipe: false,
+        ...macros
+      });
+    } else {
+      onSave({
+        id: Date.now(),
+        recipeId: selectedItem.id,
+        name: selectedItem.name,
+        amount: servings,
+        isRecipe: true,
+        ...macros
+      });
+    }
     onClose();
   };
   
   const macros = calculateMacros();
   
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Add Food to ${mealSlot}`}>
-      <div className="food-search">
-        <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search ingredients..." />
+    <Modal isOpen={isOpen} onClose={onClose} title={`Add to ${mealSlot}`}>
+      <div className="food-modal-tabs">
+        <button className={`food-modal-tab ${activeTab === 'ingredients' ? 'active' : ''}`} onClick={() => { setActiveTab('ingredients'); setSelectedItem(null); }}>Ingredients</button>
+        <button className={`food-modal-tab ${activeTab === 'recipes' ? 'active' : ''}`} onClick={() => { setActiveTab('recipes'); setSelectedItem(null); }}>Recipes</button>
       </div>
+      
+      <div className="food-search">
+        <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder={`Search ${activeTab}...`} />
+      </div>
+      
       <div className="food-search-results">
-        {filteredIngredients.length === 0 ? (
-          <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--gray-500)', fontSize: '0.8125rem' }}>
-            {searchTerm ? 'No ingredients found' : 'Start typing to search'}
-          </div>
-        ) : (
-          filteredIngredients.map(ing => (
-            <div key={ing.id} className={`food-search-item ${selectedIngredient?.id === ing.id ? 'selected' : ''}`} onClick={() => setSelectedIngredient(ing)}>
-              <span className="food-search-item-name">{ing.name}</span>
-              <span className="food-search-item-macros">{ing.calories} cal / 100g</span>
+        {activeTab === 'ingredients' ? (
+          filteredIngredients.length === 0 ? (
+            <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--gray-500)', fontSize: '0.8125rem' }}>
+              {searchTerm ? 'No ingredients found' : (ingredients?.length === 0 ? 'No ingredients added yet. Add some in the Ingredients tab.' : 'Start typing to search')}
             </div>
-          ))
+          ) : (
+            filteredIngredients.map(ing => (
+              <div key={ing.id} className={`food-search-item ${selectedItem?.id === ing.id ? 'selected' : ''}`} onClick={() => setSelectedItem(ing)}>
+                <span className="food-search-item-name">{ing.name}</span>
+                <span className="food-search-item-macros">{ing.calories} cal / 100g</span>
+              </div>
+            ))
+          )
+        ) : (
+          filteredRecipes.length === 0 ? (
+            <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--gray-500)', fontSize: '0.8125rem' }}>
+              {searchTerm ? 'No recipes found' : (recipes?.length === 0 ? 'No recipes created yet. Create some in the Meals tab.' : 'Start typing to search')}
+            </div>
+          ) : (
+            filteredRecipes.map(recipe => (
+              <div key={recipe.id} className={`food-search-item ${selectedItem?.id === recipe.id ? 'selected' : ''}`} onClick={() => setSelectedItem(recipe)}>
+                <span className="food-search-item-name">{recipe.name}</span>
+                <span className="food-search-item-macros">{recipe.perServing?.calories || 0} cal / serving</span>
+              </div>
+            ))
+          )
         )}
       </div>
-      {selectedIngredient && (
+      
+      {selectedItem && (
         <>
           <div className="serving-input">
-            <label>Amount:</label>
-            <input type="number" value={servingSize} onChange={e => setServingSize(parseFloat(e.target.value) || 0)} min="0" step="5" />
-            <span>grams</span>
+            {activeTab === 'ingredients' ? (
+              <>
+                <label>Amount:</label>
+                <input type="number" value={servingSize} onChange={e => setServingSize(parseFloat(e.target.value) || 0)} min="0" step="5" />
+                <span>grams</span>
+              </>
+            ) : (
+              <>
+                <label>Servings:</label>
+                <input type="number" value={servings} onChange={e => setServings(parseFloat(e.target.value) || 1)} min="0.25" step="0.25" />
+                <span>of {selectedItem.servings || 1}</span>
+              </>
+            )}
           </div>
           <div className="calculated-food-macros">
             <div className="cals">{macros.calories} cal</div>
@@ -670,7 +735,7 @@ const AddFoodModal = ({ isOpen, onClose, onSave, ingredients, mealSlot }) => {
       )}
       <div className="modal-actions">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="button" className="btn-primary" onClick={handleSubmit} disabled={!selectedIngredient}>Add Food</button>
+        <button type="button" className="btn-primary" onClick={handleSubmit} disabled={!selectedItem}>Add</button>
       </div>
     </Modal>
   );
@@ -768,14 +833,197 @@ const CopyMealsModal = ({ isOpen, onClose, dateStr, mealPlan, onCopy }) => {
 };
 
 // Meal Planning Section Component
-const MealPlanningSection = ({ dateStr, ingredients, mealPlans, onSaveIngredient, onDeleteIngredient, onSaveMealPlan, filterStaffId }) => {
-  const [activeTab, setActiveTab] = useState('meals');
-  const [ingredientModalOpen, setIngredientModalOpen] = useState(false);
-  const [editingIngredient, setEditingIngredient] = useState(null);
+// Edit Meal Item Modal - Edit a food/recipe in the day's meal plan (doesn't affect original recipe)
+const EditMealItemModal = ({ isOpen, onClose, onSave, onDelete, item, ingredients }) => {
+  const [formData, setFormData] = useState(null);
+  
+  useEffect(() => {
+    if (item && isOpen) {
+      if (item.isRecipe && item.items) {
+        // Recipe with editable items
+        setFormData({ ...item, items: [...item.items] });
+      } else if (item.isRecipe) {
+        // Recipe without items array (legacy) - just allow amount change
+        setFormData({ ...item });
+      } else {
+        // Ingredient - allow amount change
+        setFormData({ ...item });
+      }
+    }
+  }, [item, isOpen]);
+  
+  if (!formData) return null;
+  
+  const recalculateMacros = (items) => {
+    return items.reduce((acc, i) => ({
+      calories: acc.calories + (i.calories || 0),
+      protein: acc.protein + (i.protein || 0),
+      carbs: acc.carbs + (i.carbs || 0),
+      fats: acc.fats + (i.fats || 0)
+    }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
+  };
+  
+  const handleIngredientAmountChange = (amount) => {
+    // Find the original ingredient to recalculate
+    const originalIng = ingredients?.find(i => i.id === formData.ingredientId);
+    if (originalIng) {
+      const multiplier = amount / 100;
+      setFormData({
+        ...formData,
+        amount,
+        calories: Math.round(originalIng.calories * multiplier),
+        protein: Math.round(originalIng.protein * multiplier * 10) / 10,
+        carbs: Math.round(originalIng.carbs * multiplier * 10) / 10,
+        fats: Math.round(originalIng.fats * multiplier * 10) / 10
+      });
+    } else {
+      setFormData({ ...formData, amount });
+    }
+  };
+  
+  const handleRecipeItemAmountChange = (itemId, newAmount) => {
+    const newItems = formData.items.map(i => {
+      if (i.id === itemId) {
+        const originalIng = ingredients?.find(ing => ing.id === i.ingredientId);
+        if (originalIng) {
+          const multiplier = newAmount / 100;
+          return {
+            ...i,
+            amount: newAmount,
+            calories: Math.round(originalIng.calories * multiplier),
+            protein: Math.round(originalIng.protein * multiplier * 10) / 10,
+            carbs: Math.round(originalIng.carbs * multiplier * 10) / 10,
+            fats: Math.round(originalIng.fats * multiplier * 10) / 10
+          };
+        }
+        return { ...i, amount: newAmount };
+      }
+      return i;
+    });
+    const totals = recalculateMacros(newItems);
+    setFormData({ ...formData, items: newItems, ...totals });
+  };
+  
+  const handleRemoveRecipeItem = (itemId) => {
+    const newItems = formData.items.filter(i => i.id !== itemId);
+    const totals = recalculateMacros(newItems);
+    setFormData({ ...formData, items: newItems, ...totals });
+  };
+  
+  const handleServingsChange = (servings) => {
+    // For recipes without items array, adjust macros based on original per-serving
+    if (formData.originalPerServing) {
+      const ps = formData.originalPerServing;
+      setFormData({
+        ...formData,
+        amount: servings,
+        calories: Math.round(ps.calories * servings),
+        protein: Math.round(ps.protein * servings * 10) / 10,
+        carbs: Math.round(ps.carbs * servings * 10) / 10,
+        fats: Math.round(ps.fats * servings * 10) / 10
+      });
+    } else {
+      setFormData({ ...formData, amount: servings });
+    }
+  };
+  
+  const handleSave = () => {
+    onSave(formData);
+    onClose();
+  };
+  
+  const handleDelete = () => {
+    onDelete();
+    onClose();
+  };
+  
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Edit ${formData.name}`}>
+      <div className="modal-form">
+        {formData.isRecipe && formData.items ? (
+          // Editable recipe with ingredients
+          <>
+            <p className="edit-recipe-note">Adjust ingredient amounts for this meal only. Changes won't affect the original recipe.</p>
+            <div className="edit-recipe-items">
+              {formData.items.map(item => (
+                <div key={item.id} className="edit-recipe-item">
+                  <span className="edit-item-name">{item.name}</span>
+                  <div className="edit-item-amount">
+                    <input 
+                      type="number" 
+                      value={item.amount} 
+                      onChange={e => handleRecipeItemAmountChange(item.id, parseFloat(e.target.value) || 0)}
+                      min="0"
+                      step="5"
+                    />
+                    <span>g</span>
+                  </div>
+                  <span className="edit-item-cals">{item.calories} cal</span>
+                  <button type="button" className="edit-item-remove" onClick={() => handleRemoveRecipeItem(item.id)}><CloseSmallIcon /></button>
+                </div>
+              ))}
+            </div>
+            <div className="edit-recipe-totals">
+              <strong>{formData.calories} cal</strong>
+              <span>P: {Math.round(formData.protein)}g</span>
+              <span>C: {Math.round(formData.carbs)}g</span>
+              <span>F: {Math.round(formData.fats)}g</span>
+            </div>
+          </>
+        ) : formData.isRecipe ? (
+          // Recipe without items (just servings)
+          <div className="serving-input">
+            <label>Servings:</label>
+            <input 
+              type="number" 
+              value={formData.amount} 
+              onChange={e => handleServingsChange(parseFloat(e.target.value) || 1)}
+              min="0.25"
+              step="0.25"
+            />
+            <div className="calculated-food-macros" style={{ marginLeft: '1rem' }}>
+              <span><strong>{formData.calories}</strong> cal</span>
+              <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: 'var(--gray-500)' }}>P{Math.round(formData.protein)} C{Math.round(formData.carbs)} F{Math.round(formData.fats)}</span>
+            </div>
+          </div>
+        ) : (
+          // Ingredient
+          <div className="serving-input">
+            <label>Amount:</label>
+            <input 
+              type="number" 
+              value={formData.amount} 
+              onChange={e => handleIngredientAmountChange(parseFloat(e.target.value) || 0)}
+              min="0"
+              step="5"
+            />
+            <span>grams</span>
+            <div className="calculated-food-macros" style={{ marginLeft: '1rem' }}>
+              <span><strong>{formData.calories}</strong> cal</span>
+              <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: 'var(--gray-500)' }}>P{Math.round(formData.protein)} C{Math.round(formData.carbs)} F{Math.round(formData.fats)}</span>
+            </div>
+          </div>
+        )}
+        
+        <div className="modal-actions" style={{ justifyContent: 'space-between' }}>
+          <button type="button" className="btn-danger" onClick={handleDelete}>Remove</button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn-primary" onClick={handleSave}>Save</button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+const MealPlanningSection = ({ dateStr, ingredients, recipes, mealPlans, onSaveMealPlan, filterStaffId }) => {
   const [addFoodModalOpen, setAddFoodModalOpen] = useState(false);
   const [addFoodSlot, setAddFoodSlot] = useState(null);
   const [structureModalOpen, setStructureModalOpen] = useState(false);
   const [copyModalOpen, setCopyModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [editingSlot, setEditingSlot] = useState(null);
   
   // Get meal plan for this date and person
   const mealPlanKey = filterStaffId === 'all' ? dateStr : `${dateStr}_${filterStaffId}`;
@@ -797,6 +1045,46 @@ const MealPlanningSection = ({ dateStr, ingredients, mealPlans, onSaveIngredient
     const newMeals = { ...todayPlan.meals };
     newMeals[slotName] = newMeals[slotName].filter(f => f.id !== foodId);
     onSaveMealPlan(mealPlanKey, { ...todayPlan, meals: newMeals });
+  };
+  
+  const handleEditFood = (slotName, food) => {
+    // If it's a recipe, attach the recipe items for editing
+    if (food.isRecipe && food.recipeId) {
+      const originalRecipe = recipes?.find(r => r.id === food.recipeId);
+      if (originalRecipe && originalRecipe.items && !food.items) {
+        // First time editing - copy recipe items scaled to servings
+        const servingMultiplier = (food.amount || 1) / (originalRecipe.servings || 1);
+        const scaledItems = originalRecipe.items.map(item => ({
+          ...item,
+          id: Date.now() + Math.random(),
+          amount: Math.round(item.amount * servingMultiplier),
+          calories: Math.round(item.calories * servingMultiplier),
+          protein: Math.round(item.protein * servingMultiplier * 10) / 10,
+          carbs: Math.round(item.carbs * servingMultiplier * 10) / 10,
+          fats: Math.round(item.fats * servingMultiplier * 10) / 10
+        }));
+        setEditingItem({ ...food, items: scaledItems, originalPerServing: originalRecipe.perServing });
+      } else {
+        setEditingItem({ ...food, originalPerServing: originalRecipe?.perServing });
+      }
+    } else {
+      setEditingItem(food);
+    }
+    setEditingSlot(slotName);
+  };
+  
+  const handleSaveEditedFood = (updatedFood) => {
+    const newMeals = { ...todayPlan.meals };
+    newMeals[editingSlot] = newMeals[editingSlot].map(f => f.id === updatedFood.id ? updatedFood : f);
+    onSaveMealPlan(mealPlanKey, { ...todayPlan, meals: newMeals });
+    setEditingItem(null);
+    setEditingSlot(null);
+  };
+  
+  const handleDeleteEditedFood = () => {
+    handleDeleteFood(editingSlot, editingItem.id);
+    setEditingItem(null);
+    setEditingSlot(null);
   };
   
   const handleSaveStructure = (structure) => {
@@ -843,93 +1131,65 @@ const MealPlanningSection = ({ dateStr, ingredients, mealPlans, onSaveIngredient
     <div className="meals-section">
       <div className="section-header">
         <h4><UtensilsIcon /> Meals</h4>
+        <button className="btn-icon-sm" onClick={() => setStructureModalOpen(true)} title="Edit structure"><SettingsIcon /></button>
       </div>
       
-      <div className="meal-tabs">
-        <button className={`meal-tab ${activeTab === 'meals' ? 'active' : ''}`} onClick={() => setActiveTab('meals')}>Meals</button>
-        <button className={`meal-tab ${activeTab === 'ingredients' ? 'active' : ''}`} onClick={() => setActiveTab('ingredients')}>Ingredients</button>
-      </div>
-      
-      {activeTab === 'meals' && (
+      {filterStaffId === 'all' ? (
+        <p className="empty-state">Select a person to view meals</p>
+      ) : (
         <>
-          {filterStaffId === 'all' ? (
-            <p className="empty-state">Select a person to view meals</p>
-          ) : (
-            <>
-              <div className="meal-slots">
-                {todayPlan.structure.map((slotName, idx) => {
-                  const slotMacros = calculateSlotMacros(slotName);
-                  const foods = todayPlan.meals[slotName] || [];
-                  return (
-                    <div key={idx} className="meal-slot">
-                      <div className="meal-slot-header">
-                        <span className="meal-slot-name">{slotName}</span>
-                        {slotMacros.calories > 0 && (
-                          <span className="meal-slot-macros">{slotMacros.calories} cal</span>
-                        )}
-                      </div>
-                      <div className="meal-foods">
-                        {foods.map(food => (
-                          <div key={food.id} className="meal-food">
-                            <span className="meal-food-name">{food.name}</span>
-                            <span className="meal-food-amount">{food.amount}g</span>
-                            <span className="meal-food-cals">{food.calories}</span>
-                            <button className="meal-food-delete" onClick={() => handleDeleteFood(slotName, food.id)}><CloseSmallIcon /></button>
-                          </div>
-                        ))}
-                      </div>
-                      <button className="meal-add-food" onClick={() => handleAddFood(slotName)}>+ Add Food</button>
-                    </div>
-                  );
-                })}
-              </div>
-              
-              <div className="meal-day-total">
-                <span className="meal-day-total-label">Day Total</span>
-                <span className="meal-day-total-macros">
-                  <strong>{dayTotals.calories}</strong> cal | P{Math.round(dayTotals.protein)} C{Math.round(dayTotals.carbs)} F{Math.round(dayTotals.fats)}
-                </span>
-              </div>
-              
-              <div className="meal-structure-actions">
-                <button onClick={() => setStructureModalOpen(true)}><SettingsIcon /> Structure</button>
-                <button onClick={() => setCopyModalOpen(true)}><CopySmallIcon /> Copy</button>
-              </div>
-            </>
-          )}
-        </>
-      )}
-      
-      {activeTab === 'ingredients' && (
-        <>
-          <div className="ingredients-list">
-            {ingredients.length === 0 ? (
-              <p className="empty-state">No ingredients yet</p>
-            ) : (
-              ingredients.map(ing => (
-                <div key={ing.id} className="ingredient-item">
-                  <div className="ingredient-info">
-                    <div className="ingredient-name">{ing.name}</div>
-                    <div className="ingredient-macros">{ing.calories} cal | P{ing.protein} C{ing.carbs} F{ing.fats}</div>
+          <div className="meal-slots">
+            {todayPlan.structure.map((slotName, idx) => {
+              const slotMacros = calculateSlotMacros(slotName);
+              const foods = todayPlan.meals[slotName] || [];
+              return (
+                <div key={idx} className="meal-slot">
+                  <div className="meal-slot-header">
+                    <span className="meal-slot-name">{slotName}</span>
+                    {slotMacros.calories > 0 && (
+                      <span className="meal-slot-macros">{slotMacros.calories} cal</span>
+                    )}
                   </div>
-                  <div className="ingredient-actions">
-                    <button onClick={() => { setEditingIngredient(ing); setIngredientModalOpen(true); }}><EditIcon /></button>
-                    <button onClick={() => onDeleteIngredient(ing.id)}><TrashIcon /></button>
+                  <div className="meal-foods">
+                    {foods.map(food => (
+                      <div key={food.id} className="meal-food" onClick={() => handleEditFood(slotName, food)}>
+                        <span className="meal-food-name">{food.name}</span>
+                        <span className="meal-food-amount">{food.amount}{food.isRecipe ? ' srv' : 'g'}</span>
+                        <span className="meal-food-cals">{food.calories}</span>
+                        <button className="meal-food-delete" onClick={(e) => { e.stopPropagation(); handleDeleteFood(slotName, food.id); }}><CloseSmallIcon /></button>
+                      </div>
+                    ))}
                   </div>
+                  <button className="meal-add-food" onClick={() => handleAddFood(slotName)}>+ Add</button>
                 </div>
-              ))
-            )}
+              );
+            })}
           </div>
-          <button className="add-ingredient-btn" onClick={() => { setEditingIngredient(null); setIngredientModalOpen(true); }}>
-            <PlusIcon /> Add Ingredient
-          </button>
+          
+          <div className="meal-day-total">
+            <span className="meal-day-total-label">Day Total</span>
+            <span className="meal-day-total-macros">
+              <strong>{dayTotals.calories}</strong> cal | P{Math.round(dayTotals.protein)} C{Math.round(dayTotals.carbs)} F{Math.round(dayTotals.fats)}
+            </span>
+          </div>
+          
+          <div className="meal-structure-actions">
+            <button onClick={() => setCopyModalOpen(true)}><CopySmallIcon /> Copy Day</button>
+          </div>
         </>
       )}
       
-      <IngredientModal isOpen={ingredientModalOpen} onClose={() => { setIngredientModalOpen(false); setEditingIngredient(null); }} onSave={onSaveIngredient} ingredient={editingIngredient} />
-      <AddFoodModal isOpen={addFoodModalOpen} onClose={() => setAddFoodModalOpen(false)} onSave={handleSaveFood} ingredients={ingredients} mealSlot={addFoodSlot} />
+      <AddFoodModal isOpen={addFoodModalOpen} onClose={() => setAddFoodModalOpen(false)} onSave={handleSaveFood} ingredients={ingredients} recipes={recipes} mealSlot={addFoodSlot} />
       <MealStructureModal isOpen={structureModalOpen} onClose={() => setStructureModalOpen(false)} onSave={handleSaveStructure} structure={todayPlan.structure} />
       <CopyMealsModal isOpen={copyModalOpen} onClose={() => setCopyModalOpen(false)} dateStr={dateStr} mealPlan={todayPlan} onCopy={handleCopyMeals} />
+      <EditMealItemModal 
+        isOpen={!!editingItem} 
+        onClose={() => { setEditingItem(null); setEditingSlot(null); }} 
+        onSave={handleSaveEditedFood} 
+        onDelete={handleDeleteEditedFood} 
+        item={editingItem} 
+        ingredients={ingredients} 
+      />
     </div>
   );
 };
@@ -1056,7 +1316,7 @@ const CopyWeekModal = ({ isOpen, onClose, weekDays, events, macros, staff, filte
 };
 
 // Combined Planner View (Weekly + Daily)
-const PlannerView = ({ date, events, tasks, staff, macros, ingredients, mealPlans, currentStaffId, filterStaffId, onFilterStaffChange, onAddEvent, onAddTask, onEditEvent, onEditTask, onDeleteEvent, onDeleteTask, onToggleTask, onToggleEvent, onNavigate, onToday, onSaveMacros, onCopyWeek, onSaveIngredient, onDeleteIngredient, onSaveMealPlan }) => {
+const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes, mealPlans, currentStaffId, filterStaffId, onFilterStaffChange, onAddEvent, onAddTask, onEditEvent, onEditTask, onDeleteEvent, onDeleteTask, onToggleTask, onToggleEvent, onNavigate, onToday, onSaveMacros, onCopyWeek, onSaveMealPlan }) => {
   const [eventSort, setEventSort] = useState('time');
   const [taskSort, setTaskSort] = useState('priority');
   const [selectedItem, setSelectedItem] = useState(null);
@@ -1176,6 +1436,30 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, mealPlan
   // Get macro key for person+date
   const getMacroKey = (dateStr, staffId) => `${dateStr}_${staffId}`;
   
+  // Calculate meal totals for a given date
+  const getMealTotals = (dayDateStr, staffId) => {
+    if (staffId === 'all') return null;
+    const mealPlanKey = `${dayDateStr}_${staffId}`;
+    const dayPlan = mealPlans[mealPlanKey];
+    if (!dayPlan || !dayPlan.meals) return null;
+    
+    let totals = { calories: 0, protein: 0, carbs: 0, fats: 0 };
+    const structure = dayPlan.structure || [];
+    
+    structure.forEach(slot => {
+      const foods = dayPlan.meals[slot] || [];
+      foods.forEach(f => {
+        totals.calories += f.calories || 0;
+        totals.protein += f.protein || 0;
+        totals.carbs += f.carbs || 0;
+        totals.fats += f.fats || 0;
+      });
+    });
+    
+    if (totals.calories === 0) return null;
+    return totals;
+  };
+  
   // Calculate weekly averages
   const weeklyMacroStats = (() => {
     if (filterStaffId === 'all') return null;
@@ -1251,19 +1535,30 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, mealPlan
             return (
               <div key={i} className={`week-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`} onClick={() => onNavigate(0, d)}>
                 {/* Macro Section */}
-                <div className={`week-day-macros ${filterStaffId === 'all' ? 'disabled' : ''}`} onClick={(e) => handleMacroClick(dayDateStr, filterStaffId, e)}>
-                  {filterStaffId === 'all' ? (
-                    <span className="macro-hint">Select person</span>
-                  ) : hasMacros ? (
-                    <div className="macro-display">
-                      <span className="macro-cal">{dayMacros.calories || '-'}</span>
-                      <span className="macro-divider">|</span>
-                      <span className="macro-details">P{dayMacros.protein || 0} C{dayMacros.carbs || 0} F{dayMacros.fats || 0}</span>
+                {(() => {
+                  const mealTotals = getMealTotals(dayDateStr, filterStaffId);
+                  return (
+                    <div className={`week-day-macros ${filterStaffId === 'all' ? 'disabled' : ''}`} onClick={(e) => handleMacroClick(dayDateStr, filterStaffId, e)}>
+                      {filterStaffId === 'all' ? (
+                        <span className="macro-hint">Select person</span>
+                      ) : hasMacros ? (
+                        <div className="macro-display">
+                          <span className="macro-cal">{dayMacros.calories || '-'}</span>
+                          <span className="macro-divider">|</span>
+                          <span className="macro-details">P{dayMacros.protein || 0} C{dayMacros.carbs || 0} F{dayMacros.fats || 0}</span>
+                        </div>
+                      ) : (
+                        <span className="macro-add">+ Macros</span>
+                      )}
+                      {mealTotals && (
+                        <div className="meal-totals-display">
+                          <span className="meal-totals-cal">{mealTotals.calories}</span>
+                          <span className="meal-totals-details">P{Math.round(mealTotals.protein)} C{Math.round(mealTotals.carbs)} F{Math.round(mealTotals.fats)}</span>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <span className="macro-add">+ Macros</span>
-                  )}
-                </div>
+                  );
+                })()}
                 
                 <div className="week-day-header">
                   <span className="day-name">{DAYS[i]}</span>
@@ -1388,9 +1683,8 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, mealPlan
           <MealPlanningSection
             dateStr={dateStr}
             ingredients={ingredients}
+            recipes={recipes}
             mealPlans={mealPlans}
-            onSaveIngredient={onSaveIngredient}
-            onDeleteIngredient={onDeleteIngredient}
             onSaveMealPlan={onSaveMealPlan}
             filterStaffId={filterStaffId}
           />
@@ -1965,6 +2259,280 @@ const StaffCalendarView = ({ year, staff, events, selectedStaffId, onSelectStaff
   );
 };
 
+// Ingredients View - Full page for managing ingredients database
+const IngredientsView = ({ ingredients, onSave, onDelete }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingIngredient, setEditingIngredient] = useState(null);
+  
+  const filteredIngredients = ingredients.filter(i => 
+    i.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const sortedIngredients = [...filteredIngredients].sort((a, b) => a.name.localeCompare(b.name));
+  
+  return (
+    <div className="ingredients-view">
+      <div className="view-header">
+        <h2>Ingredients Database</h2>
+        <div className="view-actions">
+          <div className="search-box">
+            <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search ingredients..." />
+          </div>
+          <button className="btn-primary" onClick={() => { setEditingIngredient(null); setModalOpen(true); }}><PlusIcon /> Add Ingredient</button>
+        </div>
+      </div>
+      
+      <div className="ingredients-grid">
+        {sortedIngredients.length === 0 ? (
+          <div className="empty-state-large">
+            <UtensilsIcon />
+            <h3>No ingredients yet</h3>
+            <p>Add ingredients with their nutritional info per 100g to start building recipes</p>
+            <button className="btn-primary" onClick={() => { setEditingIngredient(null); setModalOpen(true); }}><PlusIcon /> Add First Ingredient</button>
+          </div>
+        ) : (
+          sortedIngredients.map(ing => (
+            <div key={ing.id} className="ingredient-card">
+              <div className="ingredient-card-header">
+                <h3>{ing.name}</h3>
+                <div className="ingredient-card-actions">
+                  <button onClick={() => { setEditingIngredient(ing); setModalOpen(true); }}><EditIcon /></button>
+                  <button onClick={() => onDelete(ing.id)}><TrashIcon /></button>
+                </div>
+              </div>
+              <div className="ingredient-card-macros">
+                <div className="macro-item"><span className="macro-value">{ing.calories}</span><span className="macro-label">cal</span></div>
+                <div className="macro-item"><span className="macro-value">{ing.protein}g</span><span className="macro-label">protein</span></div>
+                <div className="macro-item"><span className="macro-value">{ing.carbs}g</span><span className="macro-label">carbs</span></div>
+                <div className="macro-item"><span className="macro-value">{ing.fats}g</span><span className="macro-label">fats</span></div>
+              </div>
+              <div className="ingredient-card-footer">per 100g</div>
+            </div>
+          ))
+        )}
+      </div>
+      
+      <IngredientModal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditingIngredient(null); }} onSave={onSave} ingredient={editingIngredient} />
+    </div>
+  );
+};
+
+// Recipe Modal - Create/Edit recipes from ingredients
+const RecipeModal = ({ isOpen, onClose, onSave, recipe, ingredients }) => {
+  const [formData, setFormData] = useState({ name: '', servings: 1, items: [] });
+  const [addingItem, setAddingItem] = useState(false);
+  const [selectedIngredient, setSelectedIngredient] = useState(null);
+  const [itemAmount, setItemAmount] = useState(100);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  useEffect(() => {
+    if (recipe) {
+      setFormData({ ...recipe, items: recipe.items || [] });
+    } else {
+      setFormData({ name: '', servings: 1, items: [] });
+    }
+    setAddingItem(false);
+    setSelectedIngredient(null);
+    setItemAmount(100);
+    setSearchTerm('');
+  }, [recipe, isOpen]);
+  
+  const filteredIngredients = ingredients.filter(i => 
+    i.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const addItem = () => {
+    if (!selectedIngredient) return;
+    const multiplier = itemAmount / 100;
+    const newItem = {
+      id: Date.now(),
+      ingredientId: selectedIngredient.id,
+      name: selectedIngredient.name,
+      amount: itemAmount,
+      calories: Math.round(selectedIngredient.calories * multiplier),
+      protein: Math.round(selectedIngredient.protein * multiplier * 10) / 10,
+      carbs: Math.round(selectedIngredient.carbs * multiplier * 10) / 10,
+      fats: Math.round(selectedIngredient.fats * multiplier * 10) / 10
+    };
+    setFormData({ ...formData, items: [...formData.items, newItem] });
+    setAddingItem(false);
+    setSelectedIngredient(null);
+    setItemAmount(100);
+    setSearchTerm('');
+  };
+  
+  const removeItem = (itemId) => {
+    setFormData({ ...formData, items: formData.items.filter(i => i.id !== itemId) });
+  };
+  
+  const totals = formData.items.reduce((acc, item) => ({
+    calories: acc.calories + item.calories,
+    protein: acc.protein + item.protein,
+    carbs: acc.carbs + item.carbs,
+    fats: acc.fats + item.fats
+  }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
+  
+  const perServing = {
+    calories: Math.round(totals.calories / (formData.servings || 1)),
+    protein: Math.round(totals.protein / (formData.servings || 1) * 10) / 10,
+    carbs: Math.round(totals.carbs / (formData.servings || 1) * 10) / 10,
+    fats: Math.round(totals.fats / (formData.servings || 1) * 10) / 10
+  };
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave({
+      ...formData,
+      id: recipe?.id || Date.now(),
+      totals,
+      perServing
+    });
+    onClose();
+  };
+  
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={recipe ? 'Edit Recipe' : 'Create Recipe'}>
+      <form onSubmit={handleSubmit} className="modal-form">
+        <div className="form-row">
+          <div className="form-group" style={{ flex: 2 }}>
+            <label>Recipe Name</label>
+            <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Overnight Oats" required />
+          </div>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label>Servings</label>
+            <input type="number" value={formData.servings} onChange={e => setFormData({...formData, servings: parseInt(e.target.value) || 1})} min="1" />
+          </div>
+        </div>
+        
+        <div className="recipe-items-section">
+          <label>Ingredients</label>
+          <div className="recipe-items-list">
+            {formData.items.map(item => (
+              <div key={item.id} className="recipe-item">
+                <span className="recipe-item-name">{item.name}</span>
+                <span className="recipe-item-amount">{item.amount}g</span>
+                <span className="recipe-item-cals">{item.calories} cal</span>
+                <button type="button" className="recipe-item-delete" onClick={() => removeItem(item.id)}><CloseSmallIcon /></button>
+              </div>
+            ))}
+          </div>
+          
+          {addingItem ? (
+            <div className="add-item-form">
+              <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search ingredients..." className="item-search" />
+              <div className="item-search-results">
+                {filteredIngredients.slice(0, 5).map(ing => (
+                  <div key={ing.id} className={`item-search-result ${selectedIngredient?.id === ing.id ? 'selected' : ''}`} onClick={() => setSelectedIngredient(ing)}>
+                    <span>{ing.name}</span>
+                    <span className="result-cals">{ing.calories} cal/100g</span>
+                  </div>
+                ))}
+              </div>
+              {selectedIngredient && (
+                <div className="item-amount-row">
+                  <input type="number" value={itemAmount} onChange={e => setItemAmount(parseFloat(e.target.value) || 0)} min="0" step="5" />
+                  <span>grams</span>
+                  <button type="button" className="btn-primary btn-sm" onClick={addItem}>Add</button>
+                  <button type="button" className="btn-secondary btn-sm" onClick={() => setAddingItem(false)}>Cancel</button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button type="button" className="add-item-btn" onClick={() => setAddingItem(true)}>+ Add Ingredient</button>
+          )}
+        </div>
+        
+        {formData.items.length > 0 && (
+          <div className="recipe-totals">
+            <div className="recipe-totals-row">
+              <span>Total:</span>
+              <span><strong>{totals.calories}</strong> cal</span>
+              <span>P: {Math.round(totals.protein)}g</span>
+              <span>C: {Math.round(totals.carbs)}g</span>
+              <span>F: {Math.round(totals.fats)}g</span>
+            </div>
+            <div className="recipe-totals-row per-serving">
+              <span>Per Serving:</span>
+              <span><strong>{perServing.calories}</strong> cal</span>
+              <span>P: {perServing.protein}g</span>
+              <span>C: {perServing.carbs}g</span>
+              <span>F: {perServing.fats}g</span>
+            </div>
+          </div>
+        )}
+        
+        <div className="modal-actions">
+          <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn-primary" disabled={!formData.name || formData.items.length === 0}>{recipe ? 'Save' : 'Create Recipe'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+// Meals/Recipes View - Full page for managing recipes
+const MealsView = ({ recipes, ingredients, onSave, onDelete }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState(null);
+  
+  const filteredRecipes = recipes.filter(r => 
+    r.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const sortedRecipes = [...filteredRecipes].sort((a, b) => a.name.localeCompare(b.name));
+  
+  return (
+    <div className="meals-view">
+      <div className="view-header">
+        <h2>Recipes</h2>
+        <div className="view-actions">
+          <div className="search-box">
+            <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search recipes..." />
+          </div>
+          <button className="btn-primary" onClick={() => { setEditingRecipe(null); setModalOpen(true); }}><PlusIcon /> Create Recipe</button>
+        </div>
+      </div>
+      
+      <div className="recipes-grid">
+        {sortedRecipes.length === 0 ? (
+          <div className="empty-state-large">
+            <UtensilsIcon />
+            <h3>No recipes yet</h3>
+            <p>Create recipes by combining ingredients from your database</p>
+            <button className="btn-primary" onClick={() => { setEditingRecipe(null); setModalOpen(true); }}><PlusIcon /> Create First Recipe</button>
+          </div>
+        ) : (
+          sortedRecipes.map(recipe => (
+            <div key={recipe.id} className="recipe-card">
+              <div className="recipe-card-header">
+                <h3>{recipe.name}</h3>
+                <div className="recipe-card-actions">
+                  <button onClick={() => { setEditingRecipe(recipe); setModalOpen(true); }}><EditIcon /></button>
+                  <button onClick={() => onDelete(recipe.id)}><TrashIcon /></button>
+                </div>
+              </div>
+              <div className="recipe-card-info">
+                <span className="recipe-servings">{recipe.servings} serving{recipe.servings > 1 ? 's' : ''}</span>
+                <span className="recipe-items-count">{recipe.items?.length || 0} ingredients</span>
+              </div>
+              <div className="recipe-card-macros">
+                <div className="macro-item highlight"><span className="macro-value">{recipe.perServing?.calories || 0}</span><span className="macro-label">cal/serving</span></div>
+                <div className="macro-item"><span className="macro-value">{recipe.perServing?.protein || 0}g</span><span className="macro-label">protein</span></div>
+                <div className="macro-item"><span className="macro-value">{recipe.perServing?.carbs || 0}g</span><span className="macro-label">carbs</span></div>
+                <div className="macro-item"><span className="macro-value">{recipe.perServing?.fats || 0}g</span><span className="macro-label">fats</span></div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      
+      <RecipeModal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditingRecipe(null); }} onSave={onSave} recipe={editingRecipe} ingredients={ingredients} />
+    </div>
+  );
+};
+
 // Main App
 function App() {
   const [activeView, setActiveView] = useState('planner');
@@ -1975,6 +2543,7 @@ function App() {
   const [tasks, setTasks] = useState([]);
   const [macros, setMacros] = useState({});
   const [ingredients, setIngredients] = useState([]);
+  const [recipes, setRecipes] = useState([]);
   const [mealPlans, setMealPlans] = useState({});
   const [selectedStaffId, setSelectedStaffId] = useState('all');
   const [filterStaffId, setFilterStaffId] = useState('all');
@@ -2021,6 +2590,7 @@ function App() {
         setTasks(data.tasks || []);
         setMacros(data.macros || {});
         setIngredients(data.ingredients || []);
+        setRecipes(data.recipes || []);
         setMealPlans(data.mealPlans || {});
         // Only set currentStaffId if not already set from localStorage
         if (!currentStaffId && data.staff?.length > 0) {
@@ -2041,7 +2611,7 @@ function App() {
       newEvents = [...events, { ...eventData, id: Date.now() }];
     }
     setEvents(newEvents);
-    saveToFirebase({ staff, events: newEvents, tasks, macros, ingredients, mealPlans });
+    saveToFirebase({ staff, events: newEvents, tasks, macros, ingredients, recipes, mealPlans });
     setEditingEvent(null);
     setEventInitialDate(null);
   };
@@ -2050,7 +2620,7 @@ function App() {
     if (confirm('Delete this event?')) {
       const newEvents = events.filter(e => e.id !== id);
       setEvents(newEvents);
-      saveToFirebase({ staff, events: newEvents, tasks, macros, ingredients, mealPlans });
+      saveToFirebase({ staff, events: newEvents, tasks, macros, ingredients, recipes, mealPlans });
     }
   };
 
@@ -2068,7 +2638,7 @@ function App() {
       return e;
     });
     setEvents(newEvents);
-    saveToFirebase({ staff, events: newEvents, tasks, macros, ingredients, mealPlans });
+    saveToFirebase({ staff, events: newEvents, tasks, macros, ingredients, recipes, mealPlans });
   };
   
   const handleSaveTask = (taskData) => {
@@ -2079,7 +2649,7 @@ function App() {
       newTasks = [...tasks, { ...taskData, id: Date.now(), completedAt: null }];
     }
     setTasks(newTasks);
-    saveToFirebase({ staff, events, tasks: newTasks, macros, ingredients, mealPlans });
+    saveToFirebase({ staff, events, tasks: newTasks, macros, ingredients, recipes, mealPlans });
     setEditingTask(null);
   };
 
@@ -2097,14 +2667,14 @@ function App() {
       return t;
     });
     setTasks(newTasks);
-    saveToFirebase({ staff, events, tasks: newTasks, macros, ingredients, mealPlans });
+    saveToFirebase({ staff, events, tasks: newTasks, macros, ingredients, recipes, mealPlans });
   };
 
   const handleDeleteTask = (id) => {
     if (confirm('Delete this task?')) {
       const newTasks = tasks.filter(t => t.id !== id);
       setTasks(newTasks);
-      saveToFirebase({ staff, events, tasks: newTasks, macros, ingredients, mealPlans });
+      saveToFirebase({ staff, events, tasks: newTasks, macros, ingredients, recipes, mealPlans });
     }
   };
   
@@ -2116,7 +2686,7 @@ function App() {
       newStaff = [...staff, { ...staffData, id: Date.now() }];
     }
     setStaff(newStaff);
-    saveToFirebase({ staff: newStaff, events, tasks, macros, ingredients, mealPlans });
+    saveToFirebase({ staff: newStaff, events, tasks, macros, ingredients, recipes, mealPlans });
     setEditingStaff(null);
   };
   
@@ -2126,7 +2696,7 @@ function App() {
       setStaff(newStaff);
       if (selectedStaffId === id) setSelectedStaffId('all');
       if (currentStaffId === id) setCurrentStaffId(newStaff[0]?.id || null);
-      saveToFirebase({ staff: newStaff, events, tasks, macros, ingredients, mealPlans });
+      saveToFirebase({ staff: newStaff, events, tasks, macros, ingredients, recipes, mealPlans });
     }
   };
 
@@ -2134,7 +2704,7 @@ function App() {
     const macroKey = `${dateStr}_${staffId}`;
     const newMacros = { ...macros, [macroKey]: macroData };
     setMacros(newMacros);
-    saveToFirebase({ staff, events, tasks, macros: newMacros, ingredients, mealPlans });
+    saveToFirebase({ staff, events, tasks, macros: newMacros, ingredients, recipes, mealPlans });
   };
 
   const handleSaveIngredient = (ingredientData) => {
@@ -2146,20 +2716,39 @@ function App() {
       newIngredients = [...ingredients, ingredientData];
     }
     setIngredients(newIngredients);
-    saveToFirebase({ staff, events, tasks, macros, ingredients: newIngredients, mealPlans });
+    saveToFirebase({ staff, events, tasks, macros, ingredients: newIngredients, recipes, mealPlans });
   };
 
   const handleDeleteIngredient = (ingredientId) => {
     if (!window.confirm('Delete this ingredient?')) return;
     const newIngredients = ingredients.filter(i => i.id !== ingredientId);
     setIngredients(newIngredients);
-    saveToFirebase({ staff, events, tasks, macros, ingredients: newIngredients, mealPlans });
+    saveToFirebase({ staff, events, tasks, macros, ingredients: newIngredients, recipes, mealPlans });
+  };
+
+  const handleSaveRecipe = (recipeData) => {
+    let newRecipes;
+    const existingIndex = recipes.findIndex(r => r.id === recipeData.id);
+    if (existingIndex >= 0) {
+      newRecipes = recipes.map(r => r.id === recipeData.id ? recipeData : r);
+    } else {
+      newRecipes = [...recipes, recipeData];
+    }
+    setRecipes(newRecipes);
+    saveToFirebase({ staff, events, tasks, macros, ingredients, recipes: newRecipes, mealPlans });
+  };
+
+  const handleDeleteRecipe = (recipeId) => {
+    if (!window.confirm('Delete this recipe?')) return;
+    const newRecipes = recipes.filter(r => r.id !== recipeId);
+    setRecipes(newRecipes);
+    saveToFirebase({ staff, events, tasks, macros, ingredients, recipes: newRecipes, mealPlans });
   };
 
   const handleSaveMealPlan = (mealPlanKey, planData) => {
     const newMealPlans = { ...mealPlans, [mealPlanKey]: planData };
     setMealPlans(newMealPlans);
-    saveToFirebase({ staff, events, tasks, macros, ingredients, mealPlans: newMealPlans });
+    saveToFirebase({ staff, events, tasks, macros, ingredients, recipes, mealPlans: newMealPlans });
   };
 
   const handleCopyWeek = (eventsToCopy, macrosToCopy) => {
@@ -2203,7 +2792,7 @@ function App() {
     
     setEvents(newEvents);
     setMacros(newMacros);
-    saveToFirebase({ staff, events: newEvents, tasks, macros: newMacros, ingredients, mealPlans });
+    saveToFirebase({ staff, events: newEvents, tasks, macros: newMacros, ingredients, recipes, mealPlans });
   };
   
   const handleDayClick = (dateStr) => { setDayPopupDate(dateStr); setDayPopupOpen(true); };
@@ -2246,6 +2835,8 @@ function App() {
           <button className={`nav-tab ${activeView === 'planner' ? 'active' : ''}`} onClick={() => setActiveView('planner')}><ClockIcon /> Planner</button>
           <button className={`nav-tab ${activeView === 'monthly' ? 'active' : ''}`} onClick={() => setActiveView('monthly')}><GridIcon /> Monthly</button>
           <button className={`nav-tab ${activeView === 'staff' ? 'active' : ''}`} onClick={() => setActiveView('staff')}><CalendarIcon /> Calendar</button>
+          <button className={`nav-tab ${activeView === 'meals' ? 'active' : ''}`} onClick={() => setActiveView('meals')}><UtensilsIcon /> Meals</button>
+          <button className={`nav-tab ${activeView === 'ingredients' ? 'active' : ''}`} onClick={() => setActiveView('ingredients')}><ChartIcon /> Ingredients</button>
         </nav>
         
         <div className="header-right">
@@ -2263,9 +2854,11 @@ function App() {
       </header>
       
       <main className="app-main">
-        {activeView === 'planner' && <PlannerView date={currentDate} events={events} tasks={tasks} staff={staff} macros={macros} ingredients={ingredients} mealPlans={mealPlans} currentStaffId={currentStaffId} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onToggleEvent={handleToggleEvent} onNavigate={navigateDate} onToday={goToToday} onSaveMacros={handleSaveMacros} onCopyWeek={handleCopyWeek} onSaveIngredient={handleSaveIngredient} onDeleteIngredient={handleDeleteIngredient} onSaveMealPlan={handleSaveMealPlan} />}
+        {activeView === 'planner' && <PlannerView date={currentDate} events={events} tasks={tasks} staff={staff} macros={macros} ingredients={ingredients} recipes={recipes} mealPlans={mealPlans} currentStaffId={currentStaffId} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onToggleEvent={handleToggleEvent} onNavigate={navigateDate} onToday={goToToday} onSaveMacros={handleSaveMacros} onCopyWeek={handleCopyWeek} onSaveMealPlan={handleSaveMealPlan} />}
         {activeView === 'monthly' && <MonthlyView date={currentDate} events={events} staff={staff} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onDateClick={handleDayClick} onNavigate={navigateDate} onToday={goToToday} onAddEvent={openAddEvent} />}
         {activeView === 'staff' && <StaffCalendarView year={currentYear} staff={staff} events={events} selectedStaffId={selectedStaffId} onSelectStaff={setSelectedStaffId} onAddStaff={() => { setEditingStaff(null); setStaffModalOpen(true); }} onEditStaff={(s) => { setEditingStaff(s); setStaffModalOpen(true); }} onDeleteStaff={handleDeleteStaff} onDateClick={handleDayClick} onYearChange={setCurrentYear} onAddEvent={openAddEvent} />}
+        {activeView === 'meals' && <MealsView recipes={recipes} ingredients={ingredients} onSave={handleSaveRecipe} onDelete={handleDeleteRecipe} />}
+        {activeView === 'ingredients' && <IngredientsView ingredients={ingredients} onSave={handleSaveIngredient} onDelete={handleDeleteIngredient} />}
       </main>
       
       <EventModal isOpen={eventModalOpen} onClose={() => { setEventModalOpen(false); setEditingEvent(null); setEventInitialDate(null); }} onSave={handleSaveEvent} event={editingEvent} staff={staff} initialDate={eventInitialDate} />
