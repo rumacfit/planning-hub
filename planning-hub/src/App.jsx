@@ -793,7 +793,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
                   <span className="day-number">{d.getDate()}</span>
                 </div>
                 <div className="week-day-events">
-                  {dayEvts.slice(0, 2).map(event => {
+                  {dayEvts.map(event => {
                     const color = getEventColor(event, staff);
                     return (
                       <div key={event.id} className="week-event" style={{ backgroundColor: `${color}20`, borderLeft: `3px solid ${color}` }} onClick={(e) => handleItemClick(event, 'event', e)}>
@@ -801,12 +801,11 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
                       </div>
                     );
                   })}
-                  {dayTsks.slice(0, 1).map(task => (
+                  {dayTsks.map(task => (
                     <div key={task.id} className="week-task-small" onClick={(e) => handleItemClick(task, 'task', e)}>
                       <span className="task-title-small">{task.title}</span>
                     </div>
                   ))}
-                  {(dayEvts.length + dayTsks.length) > 3 && <div className="week-event-more">+{dayEvts.length + dayTsks.length - 3}</div>}
                 </div>
               </div>
             );
