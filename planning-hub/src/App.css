@@ -80,7 +80,7 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 
 /* Planner Week */
 .planner-week { background: var(--gray-50); border-radius: var(--radius); padding: 1rem; }
-.planner-week .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; }
+.planner-week .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; align-items: start; }
 .planner-week .week-day { background: var(--white); border-radius: var(--radius); min-height: 120px; padding: 0; cursor: pointer; transition: all 0.15s ease; border: 2px solid transparent; display: flex; flex-direction: column; }
 .planner-week .week-day:hover { border-color: var(--gray-200); }
 .planner-week .week-day.today { border-color: var(--primary); }
