@@ -111,6 +111,26 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 .meal-totals-cal { font-size: 0.75rem; font-weight: 600; color: var(--orange); }
 .meal-totals-details { font-size: 0.5625rem; color: var(--gray-400); }
 
+/* Weekly Goals Banner */
+.weekly-goals-banner { background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%); border: 1px solid #BBF7D0; border-radius: var(--radius-lg); padding: 0.75rem 1rem; margin-bottom: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; position: relative; transition: all 0.2s ease; }
+.weekly-goals-banner:hover { box-shadow: var(--shadow); border-color: #86EFAC; }
+.goals-targets { display: flex; align-items: center; gap: 0.75rem; }
+.goals-label { font-size: 0.75rem; color: var(--gray-500); font-weight: 500; }
+.goals-cal { font-size: 1.125rem; font-weight: 700; color: var(--success); }
+.goals-macros { font-size: 0.8125rem; color: var(--gray-600); font-weight: 500; }
+.goals-progress { display: flex; align-items: center; gap: 0.5rem; padding-left: 1rem; border-left: 1px solid #BBF7D0; }
+.progress-label { font-size: 0.6875rem; color: var(--gray-400); }
+.progress-cal { font-size: 0.875rem; font-weight: 600; color: var(--gray-700); }
+.progress-cal.over { color: var(--danger); }
+.progress-diff { font-size: 0.6875rem; color: var(--gray-400); }
+.goals-notes { flex: 1; font-size: 0.75rem; color: var(--gray-500); font-style: italic; padding-left: 1rem; border-left: 1px solid #BBF7D0; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goals-edit-btn { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border: none; background: rgba(255,255,255,0.7); cursor: pointer; color: var(--gray-500); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; }
+.goals-edit-btn:hover { background: white; color: var(--gray-700); }
+.goals-empty { display: flex; align-items: center; gap: 1rem; color: var(--success); font-weight: 500; }
+.goals-empty span:first-child { font-size: 0.875rem; }
+.goals-hint-text { font-size: 0.75rem; color: var(--gray-400); font-weight: 400; }
+.goals-hint { font-size: 0.8125rem; color: var(--gray-500); margin-bottom: 1rem; }
+
 /* Macro staff badge */
 .macro-staff-badge { padding: 0.5rem 0.75rem; border-radius: var(--radius); margin-bottom: 1rem; font-weight: 500; font-size: 0.875rem; }
 
