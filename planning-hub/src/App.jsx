@@ -18,6 +18,7 @@ const CheckIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="no
 const CloudIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>;
 const SortIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="8" y2="18"/></svg>;
 const UserIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+const ListIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
 
 const COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#22C55E'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -320,15 +321,23 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate, isSimp
 };
 
 // Task Modal
-const TaskModal = ({ isOpen, onClose, onSave, task, staff }) => {
-  const [formData, setFormData] = useState({ title: '', description: '', dueDate: formatDate(new Date()), assignedTo: null, status: 'pending', priority: 'medium' });
+const TaskModal = ({ isOpen, onClose, onSave, task, staff, weekStart }) => {
+  const [formData, setFormData] = useState({ title: '', description: '', dueDate: formatDate(new Date()), assignedTo: null, status: 'pending', priority: 'medium', isWeeklyTodo: false, weekOf: '' });
   
   useEffect(() => {
-    if (task) setFormData(task);
-    else setFormData({ title: '', description: '', dueDate: formatDate(new Date()), assignedTo: null, status: 'pending', priority: 'medium' });
-  }, [task, isOpen]);
+    if (task) setFormData({ ...task, isWeeklyTodo: task.isWeeklyTodo || false, weekOf: task.weekOf || '' });
+    else setFormData({ title: '', description: '', dueDate: formatDate(new Date()), assignedTo: null, status: 'pending', priority: 'medium', isWeeklyTodo: false, weekOf: weekStart || '' });
+  }, [task, isOpen, weekStart]);
   
-  const handleSubmit = (e) => { e.preventDefault(); onSave(formData); onClose(); };
+  const handleSubmit = (e) => { 
+    e.preventDefault(); 
+    const saveData = { ...formData };
+    if (saveData.isWeeklyTodo) {
+      saveData.weekOf = weekStart || saveData.weekOf;
+    }
+    onSave(saveData); 
+    onClose(); 
+  };
   
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={task ? 'Edit Task' : 'Add Task'}>
@@ -341,10 +350,21 @@ const TaskModal = ({ isOpen, onClose, onSave, task, staff }) => {
           <label>Description</label>
           <textarea value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Description (optional)" rows={2} />
         </div>
+        
         <div className="form-group">
-          <label>Due Date</label>
-          <input type="date" value={formData.dueDate} onChange={e => setFormData({...formData, dueDate: e.target.value})} required />
+          <label className="checkbox-label">
+            <input type="checkbox" checked={formData.isWeeklyTodo} onChange={e => setFormData({...formData, isWeeklyTodo: e.target.checked})} />
+            Weekly Todo (applies to entire week)
+          </label>
         </div>
+        
+        {!formData.isWeeklyTodo && (
+          <div className="form-group">
+            <label>Due Date</label>
+            <input type="date" value={formData.dueDate} onChange={e => setFormData({...formData, dueDate: e.target.value})} required />
+          </div>
+        )}
+        
         <div className="form-group">
           <label>Assign To</label>
           <select value={formData.assignedTo || ''} onChange={e => setFormData({...formData, assignedTo: e.target.value ? Number(e.target.value) : null})}>
@@ -669,8 +689,14 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
   });
   const filteredWeeklyTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => String(t.assignedTo) === String(filterStaffId));
   
+  // Week start string for weekly todos
+  const weekStartStr = formatDate(weekDays[0]);
+  
   const pendingEvents = filteredEvents.filter(e => e.status !== 'completed');
-  const pendingTasks = filteredTasks.filter(t => t.dueDate === dateStr && t.status !== 'completed');
+  // Daily tasks - not weekly todos, due on current day
+  const pendingTasks = filteredTasks.filter(t => !t.isWeeklyTodo && t.dueDate === dateStr && t.status !== 'completed');
+  // Weekly todos - for this week
+  const weeklyTodos = filteredTasks.filter(t => t.isWeeklyTodo && t.weekOf === weekStartStr && t.status !== 'completed');
   
   // Completed section shows ALL completed items for TODAY (not filtered)
   const todayStart = new Date();
@@ -697,6 +723,12 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
     }
     if (taskSort === 'person') return (a.assignedTo || 999) - (b.assignedTo || 999);
     return 0;
+  });
+  
+  // Sort weekly todos
+  const sortedWeeklyTodos = [...weeklyTodos].sort((a, b) => {
+    const order = { high: 0, medium: 1, low: 2 };
+    return order[a.priority] - order[b.priority];
   });
   
   const formattedDate = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -885,6 +917,33 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
                   const staffMember = staff.find(s => String(s.id) === String(task.assignedTo));
                   return (
                     <div key={task.id} className="task-card">
+                      <div className="task-checkbox"><input type="checkbox" onChange={() => onToggleTask(task.id)} /></div>
+                      <div className="task-content">
+                        <div className="task-title">{task.title}</div>
+                        {staffMember && <div className="task-assignee">{staffMember.name}</div>}
+                      </div>
+                      <span className={`priority-badge ${task.priority}`}>{task.priority}</span>
+                      <div className="task-actions">
+                        <button onClick={() => onEditTask(task)}><EditIcon /></button>
+                        <button onClick={() => onDeleteTask(task.id)}><TrashIcon /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          
+          <div className="weekly-todos-section">
+            <div className="section-header">
+              <h4><ListIcon /> Weekly Todo</h4>
+            </div>
+            {sortedWeeklyTodos.length === 0 ? <p className="empty-state">No weekly todos</p> : (
+              <div className="tasks-list">
+                {sortedWeeklyTodos.map(task => {
+                  const staffMember = staff.find(s => String(s.id) === String(task.assignedTo));
+                  return (
+                    <div key={task.id} className="task-card weekly-todo-card">
                       <div className="task-checkbox"><input type="checkbox" onChange={() => onToggleTask(task.id)} /></div>
                       <div className="task-content">
                         <div className="task-title">{task.title}</div>
@@ -1694,6 +1753,14 @@ function App() {
   const openAddEvent = (initialDate = null) => { setEditingEvent(null); setEventInitialDate(initialDate || formatDate(currentDate)); setEventModalOpen(true); };
   const openEditTask = (task) => { setEditingTask(task); setTaskModalOpen(true); };
   
+  // Calculate week start from current date
+  const getWeekStart = () => {
+    const d = new Date(currentDate);
+    const day = d.getDay();
+    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+    return formatDate(d);
+  };
+  
   const currentStaffMember = staff.find(s => String(s.id) === String(currentStaffId));
   
   if (!isLoaded) return <div className="loading">Loading...</div>;
@@ -1729,7 +1796,7 @@ function App() {
       </main>
       
       <EventModal isOpen={eventModalOpen} onClose={() => { setEventModalOpen(false); setEditingEvent(null); setEventInitialDate(null); }} onSave={handleSaveEvent} event={editingEvent} staff={staff} initialDate={eventInitialDate} />
-      <TaskModal isOpen={taskModalOpen} onClose={() => { setTaskModalOpen(false); setEditingTask(null); }} onSave={handleSaveTask} task={editingTask} staff={staff} />
+      <TaskModal isOpen={taskModalOpen} onClose={() => { setTaskModalOpen(false); setEditingTask(null); }} onSave={handleSaveTask} task={editingTask} staff={staff} weekStart={getWeekStart()} />
       <StaffModal isOpen={staffModalOpen} onClose={() => { setStaffModalOpen(false); setEditingStaff(null); }} onSave={handleSaveStaff} staffMember={editingStaff} />
       <DayPopup isOpen={dayPopupOpen} onClose={() => { setDayPopupOpen(false); setDayPopupDate(null); }} dateStr={dayPopupDate} events={events.filter(e => e.showInMonthlyYearly !== false)} staff={staff} onAddEvent={openAddEvent} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onDeleteEvent={handleDeleteEvent} />
     </div>
