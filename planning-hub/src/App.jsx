@@ -23,6 +23,7 @@ const ListIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="non
 const UtensilsIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></svg>;
 const CopySmallIcon = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
 const SettingsIcon = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
+const GripIcon = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="9" cy="19" r="2"/><circle cx="15" cy="5" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="15" cy="19" r="2"/></svg>;
 
 const COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#22C55E'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -330,19 +331,19 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate, isSimp
 };
 
 // Task Modal
-const TaskModal = ({ isOpen, onClose, onSave, task, staff, weekStart }) => {
+const TaskModal = ({ isOpen, onClose, onSave, task, staff, weekStart, initialDate }) => {
   const [formData, setFormData] = useState({ title: '', description: '', dueDate: formatDate(new Date()), assignedTo: [], status: 'pending', priority: 'medium', isWeeklyTodo: false, weekOf: '' });
   
   useEffect(() => {
     if (task) {
       // Migrate old single assignedTo to array
       const assignedTo = task.assignedTo 
-        ? (Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo])
+        ? (Array.isArray(task.assignedTo) ? task.assignedTo : [])
         : [];
       setFormData({ ...task, assignedTo, isWeeklyTodo: task.isWeeklyTodo || false, weekOf: task.weekOf || '' });
     }
-    else setFormData({ title: '', description: '', dueDate: formatDate(new Date()), assignedTo: [], status: 'pending', priority: 'medium', isWeeklyTodo: false, weekOf: weekStart || '' });
-  }, [task, isOpen, weekStart]);
+    else setFormData({ title: '', description: '', dueDate: initialDate || formatDate(new Date()), assignedTo: [], status: 'pending', priority: 'medium', isWeeklyTodo: false, weekOf: weekStart || '' });
+  }, [task, isOpen, weekStart, initialDate]);
   
   const handleSubmit = (e) => { 
     e.preventDefault(); 
@@ -1378,7 +1379,7 @@ const CopyWeekModal = ({ isOpen, onClose, weekDays, events, macros, staff, filte
 };
 
 // Combined Planner View (Weekly + Daily)
-const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes, mealPlans, weeklyGoals, currentStaffId, filterStaffId, onFilterStaffChange, onAddEvent, onAddTask, onEditEvent, onEditTask, onDeleteEvent, onDeleteTask, onToggleTask, onToggleEvent, onNavigate, onToday, onSaveMacros, onCopyWeek, onSaveMealPlan, onSaveWeeklyGoals }) => {
+const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes, mealPlans, weeklyGoals, currentStaffId, filterStaffId, onFilterStaffChange, onAddEvent, onAddTask, onEditEvent, onEditTask, onDeleteEvent, onDeleteTask, onToggleTask, onToggleEvent, onReorderTask, onNavigate, onToday, onSaveMacros, onCopyWeek, onSaveMealPlan, onSaveWeeklyGoals }) => {
   const [eventSort, setEventSort] = useState('time');
   const [taskSort, setTaskSort] = useState('priority');
   const [selectedItem, setSelectedItem] = useState(null);
@@ -1464,6 +1465,9 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
   
   // Sort tasks
   const sortedTasks = [...pendingTasks].sort((a, b) => {
+    if (taskSort === 'manual') {
+      return (a.sortOrder || 0) - (b.sortOrder || 0);
+    }
     if (taskSort === 'priority') {
       const order = { high: 0, medium: 1, low: 2 };
       return order[a.priority] - order[b.priority];
@@ -1721,14 +1725,31 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
           <div className="tasks-section">
             <div className="section-header">
               <h4>Tasks</h4>
-              <SortDropdown value={taskSort} onChange={setTaskSort} options={[{value: 'priority', label: 'By Priority'}, {value: 'person', label: 'By Person'}]} />
+              <SortDropdown value={taskSort} onChange={setTaskSort} options={[{value: 'manual', label: 'Manual'}, {value: 'priority', label: 'By Priority'}, {value: 'person', label: 'By Person'}]} />
             </div>
             {sortedTasks.length === 0 ? <p className="empty-state">No tasks</p> : (
               <div className="tasks-list">
-                {sortedTasks.map(task => {
+                {sortedTasks.map((task, idx) => {
                   const assigneeNames = getTaskAssignees(task, staff);
                   return (
-                    <div key={task.id} className="task-card">
+                    <div 
+                      key={task.id} 
+                      className={`task-card ${taskSort === 'manual' ? 'draggable' : ''}`}
+                      draggable={taskSort === 'manual'}
+                      onDragStart={(e) => { e.dataTransfer.setData('taskId', task.id); e.dataTransfer.setData('taskType', 'daily'); e.currentTarget.classList.add('dragging'); }}
+                      onDragEnd={(e) => e.currentTarget.classList.remove('dragging')}
+                      onDragOver={(e) => { if (taskSort === 'manual') { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}}
+                      onDragLeave={(e) => e.currentTarget.classList.remove('drag-over')}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove('drag-over');
+                        const draggedId = parseInt(e.dataTransfer.getData('taskId'));
+                        if (draggedId !== task.id && e.dataTransfer.getData('taskType') === 'daily') {
+                          onReorderTask(draggedId, task.id, 'daily', dateStr);
+                        }
+                      }}
+                    >
+                      {taskSort === 'manual' && <div className="drag-handle"><GripIcon /></div>}
                       <div className="task-checkbox"><input type="checkbox" onChange={() => onToggleTask(task.id)} /></div>
                       <div className="task-content">
                         <div className="task-title">{task.title}</div>
@@ -2774,6 +2795,41 @@ function App() {
     }
   };
   
+  const handleReorderTask = (draggedId, targetId, taskType, dateStr) => {
+    // Get tasks for this date/type
+    const relevantTasks = tasks.filter(t => {
+      if (taskType === 'daily') return !t.isWeeklyTodo && t.dueDate === dateStr;
+      return t.isWeeklyTodo;
+    });
+    
+    // Find indices
+    const draggedTask = relevantTasks.find(t => t.id === draggedId);
+    const targetTask = relevantTasks.find(t => t.id === targetId);
+    if (!draggedTask || !targetTask) return;
+    
+    // Calculate new sort orders
+    const draggedIdx = relevantTasks.indexOf(draggedTask);
+    const targetIdx = relevantTasks.indexOf(targetTask);
+    
+    // Reorder the array
+    const reordered = [...relevantTasks];
+    reordered.splice(draggedIdx, 1);
+    reordered.splice(targetIdx, 0, draggedTask);
+    
+    // Assign new sort orders
+    const updatedIds = new Set(reordered.map(t => t.id));
+    const newTasks = tasks.map(t => {
+      if (updatedIds.has(t.id)) {
+        const newOrder = reordered.findIndex(r => r.id === t.id);
+        return { ...t, sortOrder: newOrder };
+      }
+      return t;
+    });
+    
+    setTasks(newTasks);
+    saveToFirebase({ staff, events, tasks: newTasks, macros, ingredients, recipes, mealPlans, weeklyGoals });
+  };
+  
   const handleSaveStaff = (staffData) => {
     let newStaff;
     if (editingStaff) {
@@ -2956,7 +3012,7 @@ function App() {
       </header>
       
       <main className="app-main">
-        {activeView === 'planner' && <PlannerView date={currentDate} events={events} tasks={tasks} staff={staff} macros={macros} ingredients={ingredients} recipes={recipes} mealPlans={mealPlans} weeklyGoals={weeklyGoals} currentStaffId={currentStaffId} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onToggleEvent={handleToggleEvent} onNavigate={navigateDate} onToday={goToToday} onSaveMacros={handleSaveMacros} onCopyWeek={handleCopyWeek} onSaveMealPlan={handleSaveMealPlan} onSaveWeeklyGoals={handleSaveWeeklyGoals} />}
+        {activeView === 'planner' && <PlannerView date={currentDate} events={events} tasks={tasks} staff={staff} macros={macros} ingredients={ingredients} recipes={recipes} mealPlans={mealPlans} weeklyGoals={weeklyGoals} currentStaffId={currentStaffId} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onToggleEvent={handleToggleEvent} onReorderTask={handleReorderTask} onNavigate={navigateDate} onToday={goToToday} onSaveMacros={handleSaveMacros} onCopyWeek={handleCopyWeek} onSaveMealPlan={handleSaveMealPlan} onSaveWeeklyGoals={handleSaveWeeklyGoals} />}
         {activeView === 'monthly' && <MonthlyView date={currentDate} events={events} staff={staff} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onDateClick={handleDayClick} onNavigate={navigateDate} onToday={goToToday} onAddEvent={openAddEvent} />}
         {activeView === 'staff' && <StaffCalendarView year={currentYear} staff={staff} events={events} selectedStaffId={selectedStaffId} onSelectStaff={setSelectedStaffId} onAddStaff={() => { setEditingStaff(null); setStaffModalOpen(true); }} onEditStaff={(s) => { setEditingStaff(s); setStaffModalOpen(true); }} onDeleteStaff={handleDeleteStaff} onDateClick={handleDayClick} onYearChange={setCurrentYear} onAddEvent={openAddEvent} />}
         {activeView === 'meals' && <MealsView recipes={recipes} ingredients={ingredients} onSave={handleSaveRecipe} onDelete={handleDeleteRecipe} />}
@@ -2964,7 +3020,7 @@ function App() {
       </main>
       
       <EventModal isOpen={eventModalOpen} onClose={() => { setEventModalOpen(false); setEditingEvent(null); setEventInitialDate(null); }} onSave={handleSaveEvent} event={editingEvent} staff={staff} initialDate={eventInitialDate} />
-      <TaskModal isOpen={taskModalOpen} onClose={() => { setTaskModalOpen(false); setEditingTask(null); }} onSave={handleSaveTask} task={editingTask} staff={staff} weekStart={getWeekStart()} />
+      <TaskModal isOpen={taskModalOpen} onClose={() => { setTaskModalOpen(false); setEditingTask(null); }} onSave={handleSaveTask} task={editingTask} staff={staff} weekStart={getWeekStart()} initialDate={formatDate(currentDate)} />
       <StaffModal isOpen={staffModalOpen} onClose={() => { setStaffModalOpen(false); setEditingStaff(null); }} onSave={handleSaveStaff} staffMember={editingStaff} />
       <DayPopup isOpen={dayPopupOpen} onClose={() => { setDayPopupOpen(false); setDayPopupDate(null); }} dateStr={dayPopupDate} events={events.filter(e => e.showInMonthlyYearly !== false)} staff={staff} onAddEvent={openAddEvent} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onDeleteEvent={handleDeleteEvent} />
     </div>
