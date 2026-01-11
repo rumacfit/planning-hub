@@ -673,7 +673,7 @@ const AddFoodModal = ({ isOpen, onClose, onSave, ingredients, recipes, mealSlot 
     <Modal isOpen={isOpen} onClose={onClose} title={`Add to ${mealSlot}`}>
       <div className="food-modal-tabs">
         <button className={`food-modal-tab ${activeTab === 'ingredients' ? 'active' : ''}`} onClick={() => { setActiveTab('ingredients'); setSelectedItem(null); }}>Ingredients</button>
-        <button className={`food-modal-tab ${activeTab === 'recipes' ? 'active' : ''}`} onClick={() => { setActiveTab('recipes'); setSelectedItem(null); }}>Recipes</button>
+        <button className={`food-modal-tab ${activeTab === 'meals' ? 'active' : ''}`} onClick={() => { setActiveTab('meals'); setSelectedItem(null); }}>Meals</button>
       </div>
       
       <div className="food-search">
@@ -684,7 +684,7 @@ const AddFoodModal = ({ isOpen, onClose, onSave, ingredients, recipes, mealSlot 
         {activeTab === 'ingredients' ? (
           filteredIngredients.length === 0 ? (
             <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--gray-500)', fontSize: '0.8125rem' }}>
-              {searchTerm ? 'No ingredients found' : (ingredients?.length === 0 ? 'No ingredients added yet. Add some in the Ingredients tab.' : 'Start typing to search')}
+              {searchTerm ? 'No ingredients found' : (ingredients?.length === 0 ? 'No ingredients added yet. Add some in the Ingredients tab.' : 'No ingredients match')}
             </div>
           ) : (
             filteredIngredients.map(ing => (
@@ -697,7 +697,7 @@ const AddFoodModal = ({ isOpen, onClose, onSave, ingredients, recipes, mealSlot 
         ) : (
           filteredRecipes.length === 0 ? (
             <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--gray-500)', fontSize: '0.8125rem' }}>
-              {searchTerm ? 'No recipes found' : (recipes?.length === 0 ? 'No recipes created yet. Create some in the Meals tab.' : 'Start typing to search')}
+              {searchTerm ? 'No meals found' : (recipes?.length === 0 ? 'No meals created yet. Create some in the Meals tab.' : 'No meals match')}
             </div>
           ) : (
             filteredRecipes.map(recipe => (
@@ -1537,24 +1537,46 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
                 {/* Macro Section */}
                 {(() => {
                   const mealTotals = getMealTotals(dayDateStr, filterStaffId);
+                  const hasTarget = hasMacros && dayMacros.calories;
+                  const remaining = hasTarget && mealTotals ? {
+                    calories: dayMacros.calories - mealTotals.calories,
+                    protein: (dayMacros.protein || 0) - mealTotals.protein,
+                    carbs: (dayMacros.carbs || 0) - mealTotals.carbs,
+                    fats: (dayMacros.fats || 0) - mealTotals.fats
+                  } : null;
+                  
                   return (
                     <div className={`week-day-macros ${filterStaffId === 'all' ? 'disabled' : ''}`} onClick={(e) => handleMacroClick(dayDateStr, filterStaffId, e)}>
                       {filterStaffId === 'all' ? (
                         <span className="macro-hint">Select person</span>
-                      ) : hasMacros ? (
-                        <div className="macro-display">
-                          <span className="macro-cal">{dayMacros.calories || '-'}</span>
-                          <span className="macro-divider">|</span>
-                          <span className="macro-details">P{dayMacros.protein || 0} C{dayMacros.carbs || 0} F{dayMacros.fats || 0}</span>
+                      ) : hasTarget ? (
+                        <>
+                          <div className="macro-display target">
+                            <span className="macro-label-tiny">Target</span>
+                            <span className="macro-cal">{dayMacros.calories}</span>
+                            <span className="macro-details">P{dayMacros.protein || 0} C{dayMacros.carbs || 0} F{dayMacros.fats || 0}</span>
+                          </div>
+                          {mealTotals && (
+                            <div className="macro-display consumed">
+                              <span className="macro-label-tiny">Eaten</span>
+                              <span className="macro-cal eaten">{mealTotals.calories}</span>
+                              <span className="macro-details">P{Math.round(mealTotals.protein)} C{Math.round(mealTotals.carbs)} F{Math.round(mealTotals.fats)}</span>
+                            </div>
+                          )}
+                          {remaining && (
+                            <div className={`macro-display remaining ${remaining.calories < 0 ? 'over' : ''}`}>
+                              <span className="macro-label-tiny">Left</span>
+                              <span className="macro-cal">{remaining.calories}</span>
+                            </div>
+                          )}
+                        </>
+                      ) : mealTotals ? (
+                        <div className="macro-display consumed-only">
+                          <span className="macro-cal eaten">{mealTotals.calories}</span>
+                          <span className="macro-details">P{Math.round(mealTotals.protein)} C{Math.round(mealTotals.carbs)} F{Math.round(mealTotals.fats)}</span>
                         </div>
                       ) : (
                         <span className="macro-add">+ Macros</span>
-                      )}
-                      {mealTotals && (
-                        <div className="meal-totals-display">
-                          <span className="meal-totals-cal">{mealTotals.calories}</span>
-                          <span className="meal-totals-details">P{Math.round(mealTotals.protein)} C{Math.round(mealTotals.carbs)} F{Math.round(mealTotals.fats)}</span>
-                        </div>
                       )}
                     </div>
                   );
