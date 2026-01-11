@@ -1589,7 +1589,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
         {/* Weekly Goals Banner */}
         {filterStaffId !== 'all' && (
           <div className="weekly-goals-banner">
-            <span className="goals-title">Weekly Goals</span>
+            <span className="goals-title">Goals</span>
             {currentWeekGoals && currentWeekGoals.items && currentWeekGoals.items.length > 0 ? (
               <div className="goals-list">
                 {currentWeekGoals.items.map(goal => (
@@ -1606,9 +1606,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
                 ))}
               </div>
             ) : (
-              <div className="goals-empty" onClick={() => setGoalsModalOpen(true)}>
-                <span>+ Add goals</span>
-              </div>
+              <span className="goals-empty" onClick={() => setGoalsModalOpen(true)}>+ Add goals for this week</span>
             )}
             <button className="goals-edit-btn" onClick={() => setGoalsModalOpen(true)}><EditIcon /></button>
           </div>
