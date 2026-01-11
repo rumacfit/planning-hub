@@ -55,12 +55,15 @@ const getStaffNames = (event, staff) => {
 };
 
 const getEventColor = (event, staff) => {
+  // Use event's own color if set
+  if (event.color) return event.color;
+  // Fallback to first staff member's color
   const staffIds = event.staffIds || (event.staffId ? [event.staffId] : []);
   if (staffIds.length > 0) {
     const firstStaff = staff.find(s => String(s.id) === String(staffIds[0]));
-    return firstStaff?.color || event.color || COLORS[0];
+    return firstStaff?.color || COLORS[0];
   }
-  return event.color || COLORS[0];
+  return COLORS[0];
 };
 
 const formatDisplayDate = (dateStr) => {
@@ -139,6 +142,24 @@ const StaffFilter = ({ staff, value, onChange }) => (
   </div>
 );
 
+// Color Picker
+const ColorPicker = ({ colors, selected, onChange }) => (
+  <div className="form-group">
+    <label>Event Color</label>
+    <div className="color-picker">
+      {colors.map(color => (
+        <button
+          key={color}
+          type="button"
+          className={`color-swatch ${selected === color ? 'selected' : ''}`}
+          style={{ backgroundColor: color }}
+          onClick={() => onChange(color)}
+        />
+      ))}
+    </div>
+  </div>
+);
+
 // Event Modal - Simplified
 const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate, isSimple = false }) => {
   const [formData, setFormData] = useState({
@@ -156,6 +177,7 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate, isSimp
         startTime: event.startTime || '',
         endTime: event.endTime || '',
         staffIds: event.staffIds || (event.staffId ? [event.staffId] : []),
+        color: event.color || COLORS[0],
         showInDailyWeekly: event.showInDailyWeekly !== false,
         showInMonthlyYearly: event.showInMonthlyYearly !== false,
         hasEndDate: !!event.endDate && event.endDate !== event.startDate,
@@ -175,17 +197,11 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate, isSimp
   
   const handleSubmit = (e) => {
     e.preventDefault();
-    let color = formData.color;
-    if (formData.staffIds.length > 0) {
-      const firstStaff = staff.find(s => String(s.id) === String(formData.staffIds[0]));
-      if (firstStaff) color = firstStaff.color;
-    }
     const saveData = {
       ...formData,
       endDate: formData.hasEndDate ? formData.endDate : formData.startDate,
       startTime: formData.hasStartTime ? formData.startTime : '',
       endTime: formData.hasEndTime ? formData.endTime : '',
-      color,
       isAllDay: !formData.hasStartTime
     };
     delete saveData.hasEndDate;
@@ -264,6 +280,8 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate, isSimp
             
             <StaffPicker staff={staff} selectedIds={formData.staffIds} onChange={ids => setFormData({...formData, staffIds: ids})} />
 
+            <ColorPicker colors={COLORS} selected={formData.color} onChange={color => setFormData({...formData, color})} />
+
             <div className="form-group">
               <label>Show In</label>
               <div className="visibility-options">
@@ -286,7 +304,10 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate, isSimp
         )}
 
         {isSimple && (
-          <StaffPicker staff={staff} selectedIds={formData.staffIds} onChange={ids => setFormData({...formData, staffIds: ids})} single />
+          <>
+            <StaffPicker staff={staff} selectedIds={formData.staffIds} onChange={ids => setFormData({...formData, staffIds: ids})} single />
+            <ColorPicker colors={COLORS} selected={formData.color} onChange={color => setFormData({...formData, color})} />
+          </>
         )}
         
         <div className="modal-actions">
