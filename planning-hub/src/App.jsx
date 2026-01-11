@@ -832,6 +832,61 @@ const CopyMealsModal = ({ isOpen, onClose, dateStr, mealPlan, onCopy }) => {
   );
 };
 
+// Weekly Goals Modal
+const WeeklyGoalsModal = ({ isOpen, onClose, onSave, weekKey, existingGoals }) => {
+  const [formData, setFormData] = useState({ calories: '', protein: '', carbs: '', fats: '', notes: '' });
+  
+  useEffect(() => {
+    if (existingGoals) {
+      setFormData(existingGoals);
+    } else {
+      setFormData({ calories: '', protein: '', carbs: '', fats: '', notes: '' });
+    }
+  }, [existingGoals, isOpen]);
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(weekKey, formData);
+    onClose();
+  };
+  
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Weekly Goals">
+      <form onSubmit={handleSubmit} className="modal-form">
+        <p className="goals-hint">Set your target macros for this week</p>
+        <div className="form-row macro-inputs">
+          <div className="form-group">
+            <label>Calories</label>
+            <input type="number" value={formData.calories} onChange={e => setFormData({...formData, calories: e.target.value})} placeholder="2500" />
+          </div>
+          <div className="form-group">
+            <label>Protein (g)</label>
+            <input type="number" value={formData.protein} onChange={e => setFormData({...formData, protein: e.target.value})} placeholder="180" />
+          </div>
+        </div>
+        <div className="form-row macro-inputs">
+          <div className="form-group">
+            <label>Carbs (g)</label>
+            <input type="number" value={formData.carbs} onChange={e => setFormData({...formData, carbs: e.target.value})} placeholder="300" />
+          </div>
+          <div className="form-group">
+            <label>Fats (g)</label>
+            <input type="number" value={formData.fats} onChange={e => setFormData({...formData, fats: e.target.value})} placeholder="80" />
+          </div>
+        </div>
+        <div className="form-group">
+          <label>Notes / Focus</label>
+          <textarea value={formData.notes || ''} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="e.g. High carb week for Hyrox training, cut back on fats..." rows={2} />
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn-primary">Save Goals</button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
 // Meal Planning Section Component
 // Edit Meal Item Modal - Edit a food/recipe in the day's meal plan (doesn't affect original recipe)
 const EditMealItemModal = ({ isOpen, onClose, onSave, onDelete, item, ingredients }) => {
@@ -1316,7 +1371,7 @@ const CopyWeekModal = ({ isOpen, onClose, weekDays, events, macros, staff, filte
 };
 
 // Combined Planner View (Weekly + Daily)
-const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes, mealPlans, currentStaffId, filterStaffId, onFilterStaffChange, onAddEvent, onAddTask, onEditEvent, onEditTask, onDeleteEvent, onDeleteTask, onToggleTask, onToggleEvent, onNavigate, onToday, onSaveMacros, onCopyWeek, onSaveMealPlan }) => {
+const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes, mealPlans, weeklyGoals, currentStaffId, filterStaffId, onFilterStaffChange, onAddEvent, onAddTask, onEditEvent, onEditTask, onDeleteEvent, onDeleteTask, onToggleTask, onToggleEvent, onNavigate, onToday, onSaveMacros, onCopyWeek, onSaveMealPlan, onSaveWeeklyGoals }) => {
   const [eventSort, setEventSort] = useState('time');
   const [taskSort, setTaskSort] = useState('priority');
   const [selectedItem, setSelectedItem] = useState(null);
@@ -1324,6 +1379,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
   const [macroModalOpen, setMacroModalOpen] = useState(false);
   const [macroDate, setMacroDate] = useState(null);
   const [copyModalOpen, setCopyModalOpen] = useState(false);
+  const [goalsModalOpen, setGoalsModalOpen] = useState(false);
   
   // Week calculations
   const startOfWeek = new Date(date);
@@ -1371,6 +1427,10 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
   
   // Week start string for weekly todos
   const weekStartStr = formatDate(weekDays[0]);
+  
+  // Weekly goals key (person + week)
+  const weeklyGoalsKey = filterStaffId !== 'all' ? `${weekStartStr}_${filterStaffId}` : null;
+  const currentWeekGoals = weeklyGoalsKey ? weeklyGoals[weeklyGoalsKey] : null;
   
   const pendingEvents = filteredEvents.filter(e => e.status !== 'completed');
   // Daily tasks - not weekly todos, due on current day
@@ -1519,6 +1579,35 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
       
       {/* Week Grid with Macros */}
       <div className="planner-week">
+        {/* Weekly Goals Banner */}
+        {filterStaffId !== 'all' && (
+          <div className="weekly-goals-banner" onClick={() => setGoalsModalOpen(true)}>
+            {currentWeekGoals && currentWeekGoals.calories ? (
+              <>
+                <div className="goals-targets">
+                  <span className="goals-label">Weekly Goal:</span>
+                  <span className="goals-cal">{currentWeekGoals.calories} cal</span>
+                  <span className="goals-macros">P{currentWeekGoals.protein || 0} C{currentWeekGoals.carbs || 0} F{currentWeekGoals.fats || 0}</span>
+                </div>
+                {weeklyMacroStats && (
+                  <div className="goals-progress">
+                    <span className="progress-label">Avg:</span>
+                    <span className={`progress-cal ${weeklyMacroStats.avgCals > currentWeekGoals.calories ? 'over' : ''}`}>{weeklyMacroStats.avgCals}</span>
+                    <span className="progress-diff">({weeklyMacroStats.avgCals - currentWeekGoals.calories >= 0 ? '+' : ''}{weeklyMacroStats.avgCals - currentWeekGoals.calories})</span>
+                  </div>
+                )}
+                {currentWeekGoals.notes && <div className="goals-notes">{currentWeekGoals.notes}</div>}
+              </>
+            ) : (
+              <div className="goals-empty">
+                <span>+ Set Weekly Goals</span>
+                <span className="goals-hint-text">Click to set calorie and macro targets for this week</span>
+              </div>
+            )}
+            <button className="goals-edit-btn"><EditIcon /></button>
+          </div>
+        )}
+        
         <div className="week-grid">
           {weekDays.map((d, i) => {
             const dayDateStr = formatDate(d);
@@ -1739,6 +1828,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
       <ItemPopup isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} item={selectedItem} type={itemType} staff={staff} onEdit={itemType === 'event' ? onEditEvent : onEditTask} onDelete={itemType === 'event' ? onDeleteEvent : onDeleteTask} onToggle={onToggleTask} />
       <MacroModal isOpen={macroModalOpen} onClose={() => { setMacroModalOpen(false); setMacroDate(null); }} onSave={onSaveMacros} dateStr={macroDate} staffId={filterStaffId} existingMacros={macroDate && filterStaffId !== 'all' ? macros[`${macroDate}_${filterStaffId}`] : null} staff={staff} />
       <CopyWeekModal isOpen={copyModalOpen} onClose={() => setCopyModalOpen(false)} weekDays={weekDays} events={events} macros={macros} staff={staff} filterStaffId={filterStaffId} onCopy={onCopyWeek} />
+      <WeeklyGoalsModal isOpen={goalsModalOpen} onClose={() => setGoalsModalOpen(false)} onSave={onSaveWeeklyGoals} weekKey={weeklyGoalsKey} existingGoals={currentWeekGoals} />
     </div>
   );
 };
@@ -2567,6 +2657,7 @@ function App() {
   const [ingredients, setIngredients] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [mealPlans, setMealPlans] = useState({});
+  const [weeklyGoals, setWeeklyGoals] = useState({});
   const [selectedStaffId, setSelectedStaffId] = useState('all');
   const [filterStaffId, setFilterStaffId] = useState('all');
   const [currentStaffId, setCurrentStaffId] = useState(() => {
@@ -2614,6 +2705,7 @@ function App() {
         setIngredients(data.ingredients || []);
         setRecipes(data.recipes || []);
         setMealPlans(data.mealPlans || {});
+        setWeeklyGoals(data.weeklyGoals || {});
         // Only set currentStaffId if not already set from localStorage
         if (!currentStaffId && data.staff?.length > 0) {
           setCurrentStaffId(data.staff[0].id);
@@ -2633,7 +2725,7 @@ function App() {
       newEvents = [...events, { ...eventData, id: Date.now() }];
     }
     setEvents(newEvents);
-    saveToFirebase({ staff, events: newEvents, tasks, macros, ingredients, recipes, mealPlans });
+    saveToFirebase({ staff, events: newEvents, tasks, macros, ingredients, recipes, mealPlans, weeklyGoals });
     setEditingEvent(null);
     setEventInitialDate(null);
   };
@@ -2642,7 +2734,7 @@ function App() {
     if (confirm('Delete this event?')) {
       const newEvents = events.filter(e => e.id !== id);
       setEvents(newEvents);
-      saveToFirebase({ staff, events: newEvents, tasks, macros, ingredients, recipes, mealPlans });
+      saveToFirebase({ staff, events: newEvents, tasks, macros, ingredients, recipes, mealPlans, weeklyGoals });
     }
   };
 
@@ -2660,7 +2752,7 @@ function App() {
       return e;
     });
     setEvents(newEvents);
-    saveToFirebase({ staff, events: newEvents, tasks, macros, ingredients, recipes, mealPlans });
+    saveToFirebase({ staff, events: newEvents, tasks, macros, ingredients, recipes, mealPlans, weeklyGoals });
   };
   
   const handleSaveTask = (taskData) => {
@@ -2671,7 +2763,7 @@ function App() {
       newTasks = [...tasks, { ...taskData, id: Date.now(), completedAt: null }];
     }
     setTasks(newTasks);
-    saveToFirebase({ staff, events, tasks: newTasks, macros, ingredients, recipes, mealPlans });
+    saveToFirebase({ staff, events, tasks: newTasks, macros, ingredients, recipes, mealPlans, weeklyGoals });
     setEditingTask(null);
   };
 
@@ -2689,14 +2781,14 @@ function App() {
       return t;
     });
     setTasks(newTasks);
-    saveToFirebase({ staff, events, tasks: newTasks, macros, ingredients, recipes, mealPlans });
+    saveToFirebase({ staff, events, tasks: newTasks, macros, ingredients, recipes, mealPlans, weeklyGoals });
   };
 
   const handleDeleteTask = (id) => {
     if (confirm('Delete this task?')) {
       const newTasks = tasks.filter(t => t.id !== id);
       setTasks(newTasks);
-      saveToFirebase({ staff, events, tasks: newTasks, macros, ingredients, recipes, mealPlans });
+      saveToFirebase({ staff, events, tasks: newTasks, macros, ingredients, recipes, mealPlans, weeklyGoals });
     }
   };
   
@@ -2708,7 +2800,7 @@ function App() {
       newStaff = [...staff, { ...staffData, id: Date.now() }];
     }
     setStaff(newStaff);
-    saveToFirebase({ staff: newStaff, events, tasks, macros, ingredients, recipes, mealPlans });
+    saveToFirebase({ staff: newStaff, events, tasks, macros, ingredients, recipes, mealPlans, weeklyGoals });
     setEditingStaff(null);
   };
   
@@ -2718,7 +2810,7 @@ function App() {
       setStaff(newStaff);
       if (selectedStaffId === id) setSelectedStaffId('all');
       if (currentStaffId === id) setCurrentStaffId(newStaff[0]?.id || null);
-      saveToFirebase({ staff: newStaff, events, tasks, macros, ingredients, recipes, mealPlans });
+      saveToFirebase({ staff: newStaff, events, tasks, macros, ingredients, recipes, mealPlans, weeklyGoals });
     }
   };
 
@@ -2726,7 +2818,7 @@ function App() {
     const macroKey = `${dateStr}_${staffId}`;
     const newMacros = { ...macros, [macroKey]: macroData };
     setMacros(newMacros);
-    saveToFirebase({ staff, events, tasks, macros: newMacros, ingredients, recipes, mealPlans });
+    saveToFirebase({ staff, events, tasks, macros: newMacros, ingredients, recipes, mealPlans, weeklyGoals });
   };
 
   const handleSaveIngredient = (ingredientData) => {
@@ -2738,14 +2830,14 @@ function App() {
       newIngredients = [...ingredients, ingredientData];
     }
     setIngredients(newIngredients);
-    saveToFirebase({ staff, events, tasks, macros, ingredients: newIngredients, recipes, mealPlans });
+    saveToFirebase({ staff, events, tasks, macros, ingredients: newIngredients, recipes, mealPlans, weeklyGoals });
   };
 
   const handleDeleteIngredient = (ingredientId) => {
     if (!window.confirm('Delete this ingredient?')) return;
     const newIngredients = ingredients.filter(i => i.id !== ingredientId);
     setIngredients(newIngredients);
-    saveToFirebase({ staff, events, tasks, macros, ingredients: newIngredients, recipes, mealPlans });
+    saveToFirebase({ staff, events, tasks, macros, ingredients: newIngredients, recipes, mealPlans, weeklyGoals });
   };
 
   const handleSaveRecipe = (recipeData) => {
@@ -2757,20 +2849,26 @@ function App() {
       newRecipes = [...recipes, recipeData];
     }
     setRecipes(newRecipes);
-    saveToFirebase({ staff, events, tasks, macros, ingredients, recipes: newRecipes, mealPlans });
+    saveToFirebase({ staff, events, tasks, macros, ingredients, recipes: newRecipes, mealPlans, weeklyGoals });
   };
 
   const handleDeleteRecipe = (recipeId) => {
     if (!window.confirm('Delete this recipe?')) return;
     const newRecipes = recipes.filter(r => r.id !== recipeId);
     setRecipes(newRecipes);
-    saveToFirebase({ staff, events, tasks, macros, ingredients, recipes: newRecipes, mealPlans });
+    saveToFirebase({ staff, events, tasks, macros, ingredients, recipes: newRecipes, mealPlans, weeklyGoals });
   };
 
   const handleSaveMealPlan = (mealPlanKey, planData) => {
     const newMealPlans = { ...mealPlans, [mealPlanKey]: planData };
     setMealPlans(newMealPlans);
-    saveToFirebase({ staff, events, tasks, macros, ingredients, recipes, mealPlans: newMealPlans });
+    saveToFirebase({ staff, events, tasks, macros, ingredients, recipes, mealPlans: newMealPlans, weeklyGoals });
+  };
+
+  const handleSaveWeeklyGoals = (weekKey, goalsData) => {
+    const newWeeklyGoals = { ...weeklyGoals, [weekKey]: goalsData };
+    setWeeklyGoals(newWeeklyGoals);
+    saveToFirebase({ staff, events, tasks, macros, ingredients, recipes, mealPlans, weeklyGoals: newWeeklyGoals });
   };
 
   const handleCopyWeek = (eventsToCopy, macrosToCopy) => {
@@ -2814,7 +2912,7 @@ function App() {
     
     setEvents(newEvents);
     setMacros(newMacros);
-    saveToFirebase({ staff, events: newEvents, tasks, macros: newMacros, ingredients, recipes, mealPlans });
+    saveToFirebase({ staff, events: newEvents, tasks, macros: newMacros, ingredients, recipes, mealPlans, weeklyGoals });
   };
   
   const handleDayClick = (dateStr) => { setDayPopupDate(dateStr); setDayPopupOpen(true); };
@@ -2876,7 +2974,7 @@ function App() {
       </header>
       
       <main className="app-main">
-        {activeView === 'planner' && <PlannerView date={currentDate} events={events} tasks={tasks} staff={staff} macros={macros} ingredients={ingredients} recipes={recipes} mealPlans={mealPlans} currentStaffId={currentStaffId} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onToggleEvent={handleToggleEvent} onNavigate={navigateDate} onToday={goToToday} onSaveMacros={handleSaveMacros} onCopyWeek={handleCopyWeek} onSaveMealPlan={handleSaveMealPlan} />}
+        {activeView === 'planner' && <PlannerView date={currentDate} events={events} tasks={tasks} staff={staff} macros={macros} ingredients={ingredients} recipes={recipes} mealPlans={mealPlans} weeklyGoals={weeklyGoals} currentStaffId={currentStaffId} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onToggleEvent={handleToggleEvent} onNavigate={navigateDate} onToday={goToToday} onSaveMacros={handleSaveMacros} onCopyWeek={handleCopyWeek} onSaveMealPlan={handleSaveMealPlan} onSaveWeeklyGoals={handleSaveWeeklyGoals} />}
         {activeView === 'monthly' && <MonthlyView date={currentDate} events={events} staff={staff} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onDateClick={handleDayClick} onNavigate={navigateDate} onToday={goToToday} onAddEvent={openAddEvent} />}
         {activeView === 'staff' && <StaffCalendarView year={currentYear} staff={staff} events={events} selectedStaffId={selectedStaffId} onSelectStaff={setSelectedStaffId} onAddStaff={() => { setEditingStaff(null); setStaffModalOpen(true); }} onEditStaff={(s) => { setEditingStaff(s); setStaffModalOpen(true); }} onDeleteStaff={handleDeleteStaff} onDateClick={handleDayClick} onYearChange={setCurrentYear} onAddEvent={openAddEvent} />}
         {activeView === 'meals' && <MealsView recipes={recipes} ingredients={ingredients} onSave={handleSaveRecipe} onDelete={handleDeleteRecipe} />}
