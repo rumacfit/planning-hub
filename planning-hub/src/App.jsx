@@ -55,6 +55,11 @@ const getStaffNames = (event, staff) => {
   return staffIds.map(id => staff.find(s => String(s.id) === String(id))?.name).filter(Boolean);
 };
 
+const getTaskAssignees = (task, staff) => {
+  const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+  return assignedTo.map(id => staff.find(s => String(s.id) === String(id))?.name).filter(Boolean);
+};
+
 const getEventColor = (event, staff) => {
   // Use event's own color if set
   if (event.color) return event.color;
@@ -322,11 +327,17 @@ const EventModal = ({ isOpen, onClose, onSave, event, staff, initialDate, isSimp
 
 // Task Modal
 const TaskModal = ({ isOpen, onClose, onSave, task, staff, weekStart }) => {
-  const [formData, setFormData] = useState({ title: '', description: '', dueDate: formatDate(new Date()), assignedTo: null, status: 'pending', priority: 'medium', isWeeklyTodo: false, weekOf: '' });
+  const [formData, setFormData] = useState({ title: '', description: '', dueDate: formatDate(new Date()), assignedTo: [], status: 'pending', priority: 'medium', isWeeklyTodo: false, weekOf: '' });
   
   useEffect(() => {
-    if (task) setFormData({ ...task, isWeeklyTodo: task.isWeeklyTodo || false, weekOf: task.weekOf || '' });
-    else setFormData({ title: '', description: '', dueDate: formatDate(new Date()), assignedTo: null, status: 'pending', priority: 'medium', isWeeklyTodo: false, weekOf: weekStart || '' });
+    if (task) {
+      // Migrate old single assignedTo to array
+      const assignedTo = task.assignedTo 
+        ? (Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo])
+        : [];
+      setFormData({ ...task, assignedTo, isWeeklyTodo: task.isWeeklyTodo || false, weekOf: task.weekOf || '' });
+    }
+    else setFormData({ title: '', description: '', dueDate: formatDate(new Date()), assignedTo: [], status: 'pending', priority: 'medium', isWeeklyTodo: false, weekOf: weekStart || '' });
   }, [task, isOpen, weekStart]);
   
   const handleSubmit = (e) => { 
@@ -365,13 +376,8 @@ const TaskModal = ({ isOpen, onClose, onSave, task, staff, weekStart }) => {
           </div>
         )}
         
-        <div className="form-group">
-          <label>Assign To</label>
-          <select value={formData.assignedTo || ''} onChange={e => setFormData({...formData, assignedTo: e.target.value ? Number(e.target.value) : null})}>
-            <option value="">Unassigned</option>
-            {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </div>
+        <StaffPicker staff={staff} selectedIds={formData.assignedTo} onChange={ids => setFormData({...formData, assignedTo: ids})} />
+        
         <div className="form-row">
           <div className="form-group">
             <label>Status</label>
@@ -682,12 +688,18 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
     const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
     return staffIds.some(id => String(id) === String(filterStaffId));
   });
-  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => String(t.assignedTo) === String(filterStaffId));
+  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => {
+    const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+    return assignedTo.some(id => String(id) === String(filterStaffId));
+  });
   const filteredWeeklyEvents = filterStaffId === 'all' ? weeklyEvents : weeklyEvents.filter(e => {
     const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
     return staffIds.some(id => String(id) === String(filterStaffId));
   });
-  const filteredWeeklyTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => String(t.assignedTo) === String(filterStaffId));
+  const filteredWeeklyTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => {
+    const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+    return assignedTo.some(id => String(id) === String(filterStaffId));
+  });
   
   // Week start string for weekly todos
   const weekStartStr = formatDate(weekDays[0]);
@@ -721,7 +733,11 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
       const order = { high: 0, medium: 1, low: 2 };
       return order[a.priority] - order[b.priority];
     }
-    if (taskSort === 'person') return (a.assignedTo || 999) - (b.assignedTo || 999);
+    if (taskSort === 'person') {
+      const aFirst = Array.isArray(a.assignedTo) ? (a.assignedTo[0] || 999) : (a.assignedTo || 999);
+      const bFirst = Array.isArray(b.assignedTo) ? (b.assignedTo[0] || 999) : (b.assignedTo || 999);
+      return aFirst - bFirst;
+    }
     return 0;
   });
   
@@ -914,13 +930,13 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
             {sortedTasks.length === 0 ? <p className="empty-state">No tasks</p> : (
               <div className="tasks-list">
                 {sortedTasks.map(task => {
-                  const staffMember = staff.find(s => String(s.id) === String(task.assignedTo));
+                  const assigneeNames = getTaskAssignees(task, staff);
                   return (
                     <div key={task.id} className="task-card">
                       <div className="task-checkbox"><input type="checkbox" onChange={() => onToggleTask(task.id)} /></div>
                       <div className="task-content">
                         <div className="task-title">{task.title}</div>
-                        {staffMember && <div className="task-assignee">{staffMember.name}</div>}
+                        {assigneeNames.length > 0 && <div className="task-assignee">{assigneeNames.join(', ')}</div>}
                       </div>
                       <span className={`priority-badge ${task.priority}`}>{task.priority}</span>
                       <div className="task-actions">
@@ -941,13 +957,13 @@ const PlannerView = ({ date, events, tasks, staff, macros, currentStaffId, filte
             {sortedWeeklyTodos.length === 0 ? <p className="empty-state">No weekly todos</p> : (
               <div className="tasks-list">
                 {sortedWeeklyTodos.map(task => {
-                  const staffMember = staff.find(s => String(s.id) === String(task.assignedTo));
+                  const assigneeNames = getTaskAssignees(task, staff);
                   return (
                     <div key={task.id} className="task-card weekly-todo-card">
                       <div className="task-checkbox"><input type="checkbox" onChange={() => onToggleTask(task.id)} /></div>
                       <div className="task-content">
                         <div className="task-title">{task.title}</div>
-                        {staffMember && <div className="task-assignee">{staffMember.name}</div>}
+                        {assigneeNames.length > 0 && <div className="task-assignee">{assigneeNames.join(', ')}</div>}
                       </div>
                       <span className={`priority-badge ${task.priority}`}>{task.priority}</span>
                       <div className="task-actions">
@@ -1146,7 +1162,10 @@ const DailyView = ({ date, events, tasks, staff, currentStaffId, filterStaffId, 
     const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
     return staffIds.some(id => String(id) === String(filterStaffId));
   });
-  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => String(t.assignedTo) === String(filterStaffId));
+  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => {
+    const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+    return assignedTo.some(id => String(id) === String(filterStaffId));
+  });
   
   const pendingEvents = filteredEvents.filter(e => e.status !== 'completed');
   const pendingTasks = filteredTasks.filter(t => t.dueDate === dateStr && t.status !== 'completed');
@@ -1177,7 +1196,11 @@ const DailyView = ({ date, events, tasks, staff, currentStaffId, filterStaffId, 
       const order = { high: 0, medium: 1, low: 2 };
       return order[a.priority] - order[b.priority];
     }
-    if (taskSort === 'person') return (a.assignedTo || 999) - (b.assignedTo || 999);
+    if (taskSort === 'person') {
+      const aFirst = Array.isArray(a.assignedTo) ? (a.assignedTo[0] || 999) : (a.assignedTo || 999);
+      const bFirst = Array.isArray(b.assignedTo) ? (b.assignedTo[0] || 999) : (b.assignedTo || 999);
+      return aFirst - bFirst;
+    }
     return 0;
   });
   
@@ -1241,13 +1264,13 @@ const DailyView = ({ date, events, tasks, staff, currentStaffId, filterStaffId, 
           {sortedTasks.length === 0 ? <p className="empty-state">No tasks</p> : (
             <div className="tasks-list">
               {sortedTasks.map(task => {
-                const staffMember = staff.find(s => String(s.id) === String(task.assignedTo));
+                const assigneeNames = getTaskAssignees(task, staff);
                 return (
                   <div key={task.id} className="task-card">
                     <div className="task-checkbox"><input type="checkbox" onChange={() => onToggleTask(task.id)} /></div>
                     <div className="task-content">
                       <div className="task-title">{task.title}</div>
-                      {staffMember && <div className="task-assignee">{staffMember.name}</div>}
+                      {assigneeNames.length > 0 && <div className="task-assignee">{assigneeNames.join(', ')}</div>}
                     </div>
                     <span className={`priority-badge ${task.priority}`}>{task.priority}</span>
                     <div className="task-actions">
@@ -1312,7 +1335,10 @@ const WeeklyView = ({ date, events, tasks, staff, filterStaffId, onFilterStaffCh
     const staffIds = e.staffIds || (e.staffId ? [e.staffId] : []);
     return staffIds.some(id => String(id) === String(filterStaffId));
   });
-  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => String(t.assignedTo) === String(filterStaffId));
+  const filteredTasks = filterStaffId === 'all' ? tasks : tasks.filter(t => {
+    const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+    return assignedTo.some(id => String(id) === String(filterStaffId));
+  });
   
   const formatWeekRange = () => {
     const start = weekDays[0];
@@ -1379,11 +1405,11 @@ const WeeklyView = ({ date, events, tasks, staff, filterStaffId, onFilterStaffCh
                   );
                 })}
                 {dayTasks.map(task => {
-                  const assignee = staff.find(s => String(s.id) === String(task.assignedTo));
+                  const assigneeNames = getTaskAssignees(task, staff);
                   return (
                     <div key={task.id} className={`week-task priority-${task.priority}`} onClick={(e) => handleItemClick(task, 'task', e)}>
                       <span className="task-title-small">{task.title}</span>
-                      {assignee && <span className="task-assignee-small">{assignee.name}</span>}
+                      {assigneeNames.length > 0 && <span className="task-assignee-small">{assigneeNames[0]}</span>}
                     </div>
                   );
                 })}
