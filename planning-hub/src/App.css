@@ -163,10 +163,6 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 .planner-daily .meals-section .section-header h4 { color: var(--orange, #F97316); }
 
 /* Meal Planning */
-.meal-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; background: var(--gray-100); border-radius: var(--radius); padding: 0.25rem; }
-.meal-tab { flex: 1; padding: 0.375rem 0.5rem; border: none; background: transparent; border-radius: 6px; font-size: 0.75rem; font-weight: 500; color: var(--gray-600); cursor: pointer; transition: all 0.15s ease; }
-.meal-tab.active { background: var(--white); color: var(--orange); box-shadow: var(--shadow-sm); }
-.meal-tab:hover:not(.active) { color: var(--gray-800); }
 
 .meal-slots { display: flex; flex-direction: column; gap: 0.5rem; }
 .meal-slot { background: var(--white); border-radius: var(--radius); padding: 0.5rem; box-shadow: var(--shadow-sm); }
