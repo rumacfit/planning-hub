@@ -834,50 +834,57 @@ const CopyMealsModal = ({ isOpen, onClose, dateStr, mealPlan, onCopy }) => {
 
 // Weekly Goals Modal
 const WeeklyGoalsModal = ({ isOpen, onClose, onSave, weekKey, existingGoals }) => {
-  const [formData, setFormData] = useState({ calories: '', protein: '', carbs: '', fats: '', notes: '' });
+  const [goals, setGoals] = useState([]);
   
   useEffect(() => {
-    if (existingGoals) {
-      setFormData(existingGoals);
+    if (existingGoals && existingGoals.items) {
+      setGoals([...existingGoals.items]);
     } else {
-      setFormData({ calories: '', protein: '', carbs: '', fats: '', notes: '' });
+      setGoals([{ id: Date.now(), text: '', completed: false }]);
     }
   }, [existingGoals, isOpen]);
   
+  const addGoal = () => {
+    setGoals([...goals, { id: Date.now(), text: '', completed: false }]);
+  };
+  
+  const updateGoal = (id, text) => {
+    setGoals(goals.map(g => g.id === id ? { ...g, text } : g));
+  };
+  
+  const removeGoal = (id) => {
+    if (goals.length > 1) {
+      setGoals(goals.filter(g => g.id !== id));
+    }
+  };
+  
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(weekKey, formData);
+    const filteredGoals = goals.filter(g => g.text.trim());
+    onSave(weekKey, { items: filteredGoals });
     onClose();
   };
   
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Weekly Goals">
       <form onSubmit={handleSubmit} className="modal-form">
-        <p className="goals-hint">Set your target macros for this week</p>
-        <div className="form-row macro-inputs">
-          <div className="form-group">
-            <label>Calories</label>
-            <input type="number" value={formData.calories} onChange={e => setFormData({...formData, calories: e.target.value})} placeholder="2500" />
-          </div>
-          <div className="form-group">
-            <label>Protein (g)</label>
-            <input type="number" value={formData.protein} onChange={e => setFormData({...formData, protein: e.target.value})} placeholder="180" />
-          </div>
+        <p className="goals-hint">What do you want to achieve this week?</p>
+        <div className="weekly-goals-list">
+          {goals.map((goal, idx) => (
+            <div key={goal.id} className="weekly-goal-input">
+              <span className="goal-number">{idx + 1}</span>
+              <input 
+                type="text" 
+                value={goal.text} 
+                onChange={e => updateGoal(goal.id, e.target.value)} 
+                placeholder="e.g. Finish nutrition automation..."
+                autoFocus={idx === goals.length - 1}
+              />
+              <button type="button" className="goal-remove-btn" onClick={() => removeGoal(goal.id)} disabled={goals.length === 1}><CloseSmallIcon /></button>
+            </div>
+          ))}
         </div>
-        <div className="form-row macro-inputs">
-          <div className="form-group">
-            <label>Carbs (g)</label>
-            <input type="number" value={formData.carbs} onChange={e => setFormData({...formData, carbs: e.target.value})} placeholder="300" />
-          </div>
-          <div className="form-group">
-            <label>Fats (g)</label>
-            <input type="number" value={formData.fats} onChange={e => setFormData({...formData, fats: e.target.value})} placeholder="80" />
-          </div>
-        </div>
-        <div className="form-group">
-          <label>Notes / Focus</label>
-          <textarea value={formData.notes || ''} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="e.g. High carb week for Hyrox training, cut back on fats..." rows={2} />
-        </div>
+        <button type="button" className="add-goal-btn" onClick={addGoal}>+ Add Goal</button>
         <div className="modal-actions">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn-primary">Save Goals</button>
@@ -1581,30 +1588,32 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
       <div className="planner-week">
         {/* Weekly Goals Banner */}
         {filterStaffId !== 'all' && (
-          <div className="weekly-goals-banner" onClick={() => setGoalsModalOpen(true)}>
-            {currentWeekGoals && currentWeekGoals.calories ? (
-              <>
-                <div className="goals-targets">
-                  <span className="goals-label">Weekly Goal:</span>
-                  <span className="goals-cal">{currentWeekGoals.calories} cal</span>
-                  <span className="goals-macros">P{currentWeekGoals.protein || 0} C{currentWeekGoals.carbs || 0} F{currentWeekGoals.fats || 0}</span>
-                </div>
-                {weeklyMacroStats && (
-                  <div className="goals-progress">
-                    <span className="progress-label">Avg:</span>
-                    <span className={`progress-cal ${weeklyMacroStats.avgCals > currentWeekGoals.calories ? 'over' : ''}`}>{weeklyMacroStats.avgCals}</span>
-                    <span className="progress-diff">({weeklyMacroStats.avgCals - currentWeekGoals.calories >= 0 ? '+' : ''}{weeklyMacroStats.avgCals - currentWeekGoals.calories})</span>
+          <div className="weekly-goals-banner">
+            <div className="goals-header">
+              <span className="goals-title">Weekly Goals</span>
+              <button className="goals-edit-btn" onClick={() => setGoalsModalOpen(true)}><EditIcon /></button>
+            </div>
+            {currentWeekGoals && currentWeekGoals.items && currentWeekGoals.items.length > 0 ? (
+              <div className="goals-list">
+                {currentWeekGoals.items.map(goal => (
+                  <div key={goal.id} className={`goal-item ${goal.completed ? 'completed' : ''}`} onClick={(e) => {
+                    e.stopPropagation();
+                    const updatedItems = currentWeekGoals.items.map(g => 
+                      g.id === goal.id ? { ...g, completed: !g.completed } : g
+                    );
+                    onSaveWeeklyGoals(weeklyGoalsKey, { items: updatedItems });
+                  }}>
+                    <span className="goal-check">{goal.completed ? <CheckIcon /> : <span className="goal-circle" />}</span>
+                    <span className="goal-text">{goal.text}</span>
                   </div>
-                )}
-                {currentWeekGoals.notes && <div className="goals-notes">{currentWeekGoals.notes}</div>}
-              </>
+                ))}
+              </div>
             ) : (
-              <div className="goals-empty">
-                <span>+ Set Weekly Goals</span>
-                <span className="goals-hint-text">Click to set calorie and macro targets for this week</span>
+              <div className="goals-empty" onClick={() => setGoalsModalOpen(true)}>
+                <span>+ Add weekly goals</span>
+                <span className="goals-hint-text">What do you want to achieve this week?</span>
               </div>
             )}
-            <button className="goals-edit-btn"><EditIcon /></button>
           </div>
         )}
         
