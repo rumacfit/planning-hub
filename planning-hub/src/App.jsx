@@ -70,8 +70,6 @@ const RDI = {
   }
 };
 
-const FRUIT_VEG_DAILY_TARGET = 5;
-
 // Helpers
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year, month) => { const day = new Date(year, month, 1).getDay(); return day === 0 ? 6 : day - 1; };
@@ -625,7 +623,7 @@ const IngredientModal = ({ isOpen, onClose, onSave, ingredient }) => {
         
         <label className="checkbox-label fruit-veg-check">
           <input type="checkbox" checked={formData.isFruitVeg || false} onChange={e => updateField('isFruitVeg', e.target.checked)} />
-          <span>🥗 Counts as Fruit/Veg serving</span>
+          <span>🥗 Count as Fruit/Veg variety</span>
         </label>
         
         <p className="per-100g-note">Nutritional values per 100g</p>
@@ -1657,7 +1655,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
     const rdi = RDI[gender];
     
     // Initialize totals
-    let fruitVegCount = 0;
+    const fruitVegSet = new Set(); // Track unique fruit/veg varieties
     let daysWithData = 0;
     const microTotals = MICRONUTRIENTS.reduce((acc, m) => ({ ...acc, [m.key]: 0 }), {});
     
@@ -1681,7 +1679,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
             const ing = ingredients.find(i => i.id === food.ingredientId);
             if (ing) {
               const multiplier = (food.amount || 0) / 100;
-              if (ing.isFruitVeg) fruitVegCount++;
+              if (ing.isFruitVeg) fruitVegSet.add(ing.id); // Add unique variety
               MICRONUTRIENTS.forEach(m => {
                 microTotals[m.key] += (ing[m.key] || 0) * multiplier;
               });
@@ -1694,7 +1692,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
                 const ing = ingredients.find(i => i.id === item.ingredientId);
                 if (ing) {
                   const multiplier = (item.amount || 0) / 100;
-                  if (ing.isFruitVeg) fruitVegCount++;
+                  if (ing.isFruitVeg) fruitVegSet.add(ing.id); // Add unique variety
                   MICRONUTRIENTS.forEach(m => {
                     microTotals[m.key] += (ing[m.key] || 0) * multiplier;
                   });
@@ -1709,7 +1707,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
                   const ing = ingredients.find(i => i.id === item.ingredientId);
                   if (ing) {
                     const multiplier = ((item.amount || 0) / 100) * servingMultiplier;
-                    if (ing.isFruitVeg) fruitVegCount++;
+                    if (ing.isFruitVeg) fruitVegSet.add(ing.id); // Add unique variety
                     MICRONUTRIENTS.forEach(m => {
                       microTotals[m.key] += (ing[m.key] || 0) * multiplier;
                     });
@@ -1739,8 +1737,7 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
     });
     
     return {
-      fruitVegCount,
-      fruitVegTarget: FRUIT_VEG_DAILY_TARGET * 7, // Always show weekly target (5 per day × 7 days)
+      fruitVegVarieties: fruitVegSet.size, // Count of unique varieties
       microAvgs,
       daysWithData,
       gender,
@@ -1805,10 +1802,10 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
         {/* Weekly Nutrition Bar */}
         {filterStaffId !== 'all' && weeklyNutrition && (
           <div className="weekly-nutrition-bar">
-            <div className={`nutrition-item fruit-veg ${weeklyNutrition.fruitVegCount >= weeklyNutrition.fruitVegTarget ? 'met' : ''}`}>
+            <div className="nutrition-item fruit-veg" title="Unique fruit & veg varieties this week (aim for 20+ for gut health)">
               <span className="nutrition-icon">🥗</span>
-              <span className="nutrition-label">Fruit & Veg</span>
-              <span className="nutrition-value">{weeklyNutrition.fruitVegCount}<span className="nutrition-target">/{weeklyNutrition.fruitVegTarget}</span></span>
+              <span className="nutrition-label">Varieties</span>
+              <span className="nutrition-value">{weeklyNutrition.fruitVegVarieties}</span>
             </div>
             <div className="nutrition-divider" />
             <div className="nutrition-micros">
