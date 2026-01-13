@@ -30,6 +30,48 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DAYS_SHORT = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+// Micronutrients list with units
+const MICRONUTRIENTS = [
+  { key: 'vitA', label: 'Vitamin A', unit: 'mcg' },
+  { key: 'vitC', label: 'Vitamin C', unit: 'mg' },
+  { key: 'vitD', label: 'Vitamin D', unit: 'mcg' },
+  { key: 'vitE', label: 'Vitamin E', unit: 'mg' },
+  { key: 'vitK', label: 'Vitamin K', unit: 'mcg' },
+  { key: 'vitB1', label: 'B1 Thiamin', unit: 'mg' },
+  { key: 'vitB2', label: 'B2 Riboflavin', unit: 'mg' },
+  { key: 'vitB3', label: 'B3 Niacin', unit: 'mg' },
+  { key: 'vitB6', label: 'Vitamin B6', unit: 'mg' },
+  { key: 'vitB9', label: 'B9 Folate', unit: 'mcg' },
+  { key: 'vitB12', label: 'Vitamin B12', unit: 'mcg' },
+  { key: 'calcium', label: 'Calcium', unit: 'mg' },
+  { key: 'iron', label: 'Iron', unit: 'mg' },
+  { key: 'magnesium', label: 'Magnesium', unit: 'mg' },
+  { key: 'phosphorus', label: 'Phosphorus', unit: 'mg' },
+  { key: 'potassium', label: 'Potassium', unit: 'mg' },
+  { key: 'sodium', label: 'Sodium', unit: 'mg' },
+  { key: 'zinc', label: 'Zinc', unit: 'mg' },
+  { key: 'selenium', label: 'Selenium', unit: 'mcg' },
+  { key: 'fiber', label: 'Fiber', unit: 'g' },
+];
+
+// Daily Recommended Intake (RDI) by gender
+const RDI = {
+  male: {
+    vitA: 900, vitC: 90, vitD: 15, vitE: 15, vitK: 120,
+    vitB1: 1.2, vitB2: 1.3, vitB3: 16, vitB6: 1.3, vitB9: 400, vitB12: 2.4,
+    calcium: 1000, iron: 8, magnesium: 420, phosphorus: 700,
+    potassium: 3400, sodium: 2300, zinc: 11, selenium: 55, fiber: 38
+  },
+  female: {
+    vitA: 700, vitC: 75, vitD: 15, vitE: 15, vitK: 90,
+    vitB1: 1.1, vitB2: 1.1, vitB3: 14, vitB6: 1.3, vitB9: 400, vitB12: 2.4,
+    calcium: 1000, iron: 18, magnesium: 320, phosphorus: 700,
+    potassium: 2600, sodium: 2300, zinc: 8, selenium: 55, fiber: 25
+  }
+};
+
+const FRUIT_VEG_DAILY_TARGET = 5;
+
 // Helpers
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year, month) => { const day = new Date(year, month, 1).getDay(); return day === 0 ? 6 : day - 1; };
@@ -536,54 +578,96 @@ const DEFAULT_MEAL_STRUCTURE = ['Breakfast', 'Snack 1', 'Lunch', 'Snack 2', 'Din
 
 // Ingredient Modal
 const IngredientModal = ({ isOpen, onClose, onSave, ingredient }) => {
-  const [formData, setFormData] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '' });
+  const emptyMicros = MICRONUTRIENTS.reduce((acc, m) => ({ ...acc, [m.key]: '' }), {});
+  const [formData, setFormData] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '', isFruitVeg: false, ...emptyMicros });
+  const [showMicros, setShowMicros] = useState(false);
   
   useEffect(() => {
-    if (ingredient) setFormData(ingredient);
-    else setFormData({ name: '', calories: '', protein: '', carbs: '', fats: '' });
+    if (ingredient) {
+      setFormData({ ...emptyMicros, isFruitVeg: false, ...ingredient });
+      // Auto-show micros if any are filled
+      const hasMicros = MICRONUTRIENTS.some(m => ingredient[m.key] > 0);
+      setShowMicros(hasMicros);
+    } else {
+      setFormData({ name: '', calories: '', protein: '', carbs: '', fats: '', isFruitVeg: false, ...emptyMicros });
+      setShowMicros(false);
+    }
   }, [ingredient, isOpen]);
   
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave({
+    const saveData = {
       ...formData,
       id: ingredient?.id || Date.now(),
       calories: parseFloat(formData.calories) || 0,
       protein: parseFloat(formData.protein) || 0,
       carbs: parseFloat(formData.carbs) || 0,
-      fats: parseFloat(formData.fats) || 0
+      fats: parseFloat(formData.fats) || 0,
+      isFruitVeg: formData.isFruitVeg || false
+    };
+    // Parse all micronutrients
+    MICRONUTRIENTS.forEach(m => {
+      saveData[m.key] = parseFloat(formData[m.key]) || 0;
     });
+    onSave(saveData);
     onClose();
   };
   
+  const updateField = (key, value) => setFormData({ ...formData, [key]: value });
+  
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={ingredient ? 'Edit Ingredient' : 'Add Ingredient'}>
-      <form onSubmit={handleSubmit} className="modal-form">
+      <form onSubmit={handleSubmit} className="modal-form ingredient-modal-form">
         <div className="form-group">
           <label>Ingredient Name</label>
-          <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Oats" required />
+          <input type="text" value={formData.name} onChange={e => updateField('name', e.target.value)} placeholder="e.g. Oats" required />
         </div>
-        <p className="per-100g-note">Enter nutritional values per 100g</p>
+        
+        <label className="checkbox-label fruit-veg-check">
+          <input type="checkbox" checked={formData.isFruitVeg || false} onChange={e => updateField('isFruitVeg', e.target.checked)} />
+          <span>🥗 Counts as Fruit/Veg serving</span>
+        </label>
+        
+        <p className="per-100g-note">Nutritional values per 100g</p>
+        
         <div className="macro-input-row">
           <div className="form-group">
             <label>Calories</label>
-            <input type="number" value={formData.calories} onChange={e => setFormData({...formData, calories: e.target.value})} placeholder="389" />
+            <input type="number" value={formData.calories} onChange={e => updateField('calories', e.target.value)} placeholder="389" />
           </div>
           <div className="form-group">
             <label>Protein (g)</label>
-            <input type="number" value={formData.protein} onChange={e => setFormData({...formData, protein: e.target.value})} placeholder="16.9" step="0.1" />
+            <input type="number" value={formData.protein} onChange={e => updateField('protein', e.target.value)} placeholder="16.9" step="0.1" />
           </div>
         </div>
         <div className="macro-input-row">
           <div className="form-group">
             <label>Carbs (g)</label>
-            <input type="number" value={formData.carbs} onChange={e => setFormData({...formData, carbs: e.target.value})} placeholder="66.3" step="0.1" />
+            <input type="number" value={formData.carbs} onChange={e => updateField('carbs', e.target.value)} placeholder="66.3" step="0.1" />
           </div>
           <div className="form-group">
             <label>Fats (g)</label>
-            <input type="number" value={formData.fats} onChange={e => setFormData({...formData, fats: e.target.value})} placeholder="6.9" step="0.1" />
+            <input type="number" value={formData.fats} onChange={e => updateField('fats', e.target.value)} placeholder="6.9" step="0.1" />
           </div>
         </div>
+        
+        <button type="button" className="micros-toggle" onClick={() => setShowMicros(!showMicros)}>
+          {showMicros ? '− Hide' : '+ Show'} Micronutrients
+        </button>
+        
+        {showMicros && (
+          <div className="micros-section">
+            <div className="micros-grid">
+              {MICRONUTRIENTS.map(m => (
+                <div key={m.key} className="micro-input">
+                  <label>{m.label} <span className="micro-unit">({m.unit})</span></label>
+                  <input type="number" value={formData[m.key] || ''} onChange={e => updateField(m.key, e.target.value)} placeholder="0" step="0.01" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         <div className="modal-actions">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn-primary">{ingredient ? 'Save' : 'Add Ingredient'}</button>
@@ -1562,6 +1646,108 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
     };
   })();
   
+  // Calculate weekly micronutrients and fruit/veg from meal plans
+  const weeklyNutrition = (() => {
+    if (filterStaffId === 'all') return null;
+    
+    // Determine gender based on staff name (can be improved with gender field later)
+    const currentStaffMember = staff.find(s => String(s.id) === String(filterStaffId));
+    const staffName = currentStaffMember?.name?.toLowerCase() || '';
+    const gender = (staffName.includes('ruby') || staffName.includes('karen')) ? 'female' : 'male';
+    const rdi = RDI[gender];
+    
+    // Initialize totals
+    let fruitVegCount = 0;
+    let daysWithData = 0;
+    const microTotals = MICRONUTRIENTS.reduce((acc, m) => ({ ...acc, [m.key]: 0 }), {});
+    
+    // Loop through each day of the week
+    weekDays.forEach(d => {
+      const dayDateStr = formatDate(d);
+      const mealPlanKey = `${dayDateStr}_${filterStaffId}`;
+      const dayPlan = mealPlans[mealPlanKey];
+      if (!dayPlan || !dayPlan.meals) return;
+      
+      let dayHasData = false;
+      const structure = dayPlan.structure || [];
+      
+      structure.forEach(slot => {
+        const foods = dayPlan.meals[slot] || [];
+        foods.forEach(food => {
+          dayHasData = true;
+          
+          // Calculate from ingredients
+          if (!food.isRecipe) {
+            const ing = ingredients.find(i => i.id === food.ingredientId);
+            if (ing) {
+              const multiplier = (food.amount || 0) / 100;
+              if (ing.isFruitVeg) fruitVegCount++;
+              MICRONUTRIENTS.forEach(m => {
+                microTotals[m.key] += (ing[m.key] || 0) * multiplier;
+              });
+            }
+          } else {
+            // Recipe - check if it has items array (edited) or use original recipe
+            const recipeItems = food.items || [];
+            if (recipeItems.length > 0) {
+              recipeItems.forEach(item => {
+                const ing = ingredients.find(i => i.id === item.ingredientId);
+                if (ing) {
+                  const multiplier = (item.amount || 0) / 100;
+                  if (ing.isFruitVeg) fruitVegCount++;
+                  MICRONUTRIENTS.forEach(m => {
+                    microTotals[m.key] += (ing[m.key] || 0) * multiplier;
+                  });
+                }
+              });
+            } else {
+              // Original recipe
+              const recipe = recipes.find(r => r.id === food.recipeId);
+              if (recipe && recipe.items) {
+                const servingMultiplier = (food.amount || 1) / (recipe.servings || 1);
+                recipe.items.forEach(item => {
+                  const ing = ingredients.find(i => i.id === item.ingredientId);
+                  if (ing) {
+                    const multiplier = ((item.amount || 0) / 100) * servingMultiplier;
+                    if (ing.isFruitVeg) fruitVegCount++;
+                    MICRONUTRIENTS.forEach(m => {
+                      microTotals[m.key] += (ing[m.key] || 0) * multiplier;
+                    });
+                  }
+                });
+              }
+            }
+          }
+        });
+      });
+      
+      if (dayHasData) daysWithData++;
+    });
+    
+    if (daysWithData === 0) return null;
+    
+    // Calculate daily averages and compare to RDI
+    const microAvgs = {};
+    MICRONUTRIENTS.forEach(m => {
+      const avg = microTotals[m.key] / daysWithData;
+      const target = rdi[m.key] || 0;
+      microAvgs[m.key] = {
+        value: Math.round(avg * 10) / 10,
+        target,
+        percent: target > 0 ? Math.round((avg / target) * 100) : 0,
+        met: avg >= target
+      };
+    });
+    
+    return {
+      fruitVegCount,
+      fruitVegTarget: FRUIT_VEG_DAILY_TARGET * daysWithData,
+      microAvgs,
+      daysWithData,
+      gender
+    };
+  })();
+  
   return (
     <div className="planner-view">
       {/* Week Header */}
@@ -1613,6 +1799,30 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
               <span className="goals-empty" onClick={() => setGoalsModalOpen(true)}>+ Add goals for this week</span>
             )}
             <button className="goals-edit-btn" onClick={() => setGoalsModalOpen(true)}><EditIcon /></button>
+          </div>
+        )}
+        
+        {/* Weekly Nutrition Bar */}
+        {filterStaffId !== 'all' && weeklyNutrition && (
+          <div className="weekly-nutrition-bar">
+            <div className={`nutrition-item fruit-veg ${weeklyNutrition.fruitVegCount >= weeklyNutrition.fruitVegTarget ? 'met' : ''}`}>
+              <span className="nutrition-icon">🥗</span>
+              <span className="nutrition-label">Fruit & Veg</span>
+              <span className="nutrition-value">{weeklyNutrition.fruitVegCount}<span className="nutrition-target">/{weeklyNutrition.fruitVegTarget}</span></span>
+            </div>
+            <div className="nutrition-divider" />
+            <div className="nutrition-micros">
+              {MICRONUTRIENTS.map(m => {
+                const data = weeklyNutrition.microAvgs[m.key];
+                if (!data || data.target === 0) return null;
+                return (
+                  <div key={m.key} className={`nutrition-item micro ${data.met ? 'met' : ''}`} title={`${m.label}: ${data.value}${m.unit} / ${data.target}${m.unit} daily avg`}>
+                    <span className="nutrition-label">{m.label.replace('Vitamin ', 'Vit ')}</span>
+                    <span className="nutrition-value">{data.percent}%</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
         
@@ -2410,7 +2620,7 @@ const IngredientsView = ({ ingredients, onSave, onDelete }) => {
           sortedIngredients.map(ing => (
             <div key={ing.id} className="ingredient-card">
               <div className="ingredient-card-header">
-                <h3>{ing.name}</h3>
+                <h3>{ing.name} {ing.isFruitVeg && <span className="fruit-veg-badge">🥗</span>}</h3>
                 <div className="ingredient-card-actions">
                   <button onClick={() => { setEditingIngredient(ing); setModalOpen(true); }}><EditIcon /></button>
                   <button onClick={() => onDelete(ing.id)}><TrashIcon /></button>
@@ -2796,32 +3006,36 @@ function App() {
   };
   
   const handleReorderTask = (draggedId, targetId, taskType, dateStr) => {
-    // Get tasks for this date/type
-    const relevantTasks = tasks.filter(t => {
-      if (taskType === 'daily') return !t.isWeeklyTodo && t.dueDate === dateStr;
-      return t.isWeeklyTodo;
-    });
+    if (draggedId === targetId) return;
     
-    // Find indices
-    const draggedTask = relevantTasks.find(t => t.id === draggedId);
-    const targetTask = relevantTasks.find(t => t.id === targetId);
-    if (!draggedTask || !targetTask) return;
+    // Get tasks for this date/type, sorted by current order
+    const relevantTasks = tasks
+      .filter(t => {
+        if (taskType === 'daily') return !t.isWeeklyTodo && t.dueDate === dateStr;
+        return t.isWeeklyTodo;
+      })
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
     
-    // Calculate new sort orders
-    const draggedIdx = relevantTasks.indexOf(draggedTask);
-    const targetIdx = relevantTasks.indexOf(targetTask);
+    // Find current positions
+    const draggedIdx = relevantTasks.findIndex(t => t.id === draggedId);
+    const targetIdx = relevantTasks.findIndex(t => t.id === targetId);
+    if (draggedIdx === -1 || targetIdx === -1) return;
     
-    // Reorder the array
+    // Remove dragged item and insert at target position
     const reordered = [...relevantTasks];
-    reordered.splice(draggedIdx, 1);
+    const [draggedTask] = reordered.splice(draggedIdx, 1);
     reordered.splice(targetIdx, 0, draggedTask);
     
-    // Assign new sort orders
-    const updatedIds = new Set(reordered.map(t => t.id));
+    // Create a map of new sort orders for relevant tasks only
+    const newOrderMap = {};
+    reordered.forEach((t, idx) => {
+      newOrderMap[t.id] = idx;
+    });
+    
+    // Update only the relevant tasks with new sort orders
     const newTasks = tasks.map(t => {
-      if (updatedIds.has(t.id)) {
-        const newOrder = reordered.findIndex(r => r.id === t.id);
-        return { ...t, sortOrder: newOrder };
+      if (newOrderMap.hasOwnProperty(t.id)) {
+        return { ...t, sortOrder: newOrderMap[t.id] };
       }
       return t;
     });
