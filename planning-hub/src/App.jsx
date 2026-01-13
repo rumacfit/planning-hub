@@ -30,43 +30,65 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DAYS_SHORT = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-// Micronutrients list with units
+// Micronutrients list with units (based on RDA/AI values)
 const MICRONUTRIENTS = [
+  // Fat-soluble vitamins
   { key: 'vitA', label: 'Vitamin A', unit: 'mcg' },
-  { key: 'vitC', label: 'Vitamin C', unit: 'mg' },
   { key: 'vitD', label: 'Vitamin D', unit: 'mcg' },
   { key: 'vitE', label: 'Vitamin E', unit: 'mg' },
   { key: 'vitK', label: 'Vitamin K', unit: 'mcg' },
+  // Water-soluble vitamins
+  { key: 'vitC', label: 'Vitamin C', unit: 'mg' },
   { key: 'vitB1', label: 'B1 Thiamin', unit: 'mg' },
   { key: 'vitB2', label: 'B2 Riboflavin', unit: 'mg' },
   { key: 'vitB3', label: 'B3 Niacin', unit: 'mg' },
+  { key: 'vitB5', label: 'B5 Pantothenic', unit: 'mg' },
   { key: 'vitB6', label: 'Vitamin B6', unit: 'mg' },
+  { key: 'vitB7', label: 'B7 Biotin', unit: 'mcg' },
   { key: 'vitB9', label: 'B9 Folate', unit: 'mcg' },
   { key: 'vitB12', label: 'Vitamin B12', unit: 'mcg' },
+  // Macrominerals
   { key: 'calcium', label: 'Calcium', unit: 'mg' },
-  { key: 'iron', label: 'Iron', unit: 'mg' },
-  { key: 'magnesium', label: 'Magnesium', unit: 'mg' },
   { key: 'phosphorus', label: 'Phosphorus', unit: 'mg' },
+  { key: 'magnesium', label: 'Magnesium', unit: 'mg' },
   { key: 'potassium', label: 'Potassium', unit: 'mg' },
   { key: 'sodium', label: 'Sodium', unit: 'mg' },
+  // Trace minerals
+  { key: 'iron', label: 'Iron', unit: 'mg' },
   { key: 'zinc', label: 'Zinc', unit: 'mg' },
+  { key: 'copper', label: 'Copper', unit: 'mcg' },
+  { key: 'manganese', label: 'Manganese', unit: 'mg' },
   { key: 'selenium', label: 'Selenium', unit: 'mcg' },
+  { key: 'iodine', label: 'Iodine', unit: 'mcg' },
+  // Other
   { key: 'fiber', label: 'Fiber', unit: 'g' },
 ];
 
-// Daily Recommended Intake (RDI) by gender
+// Daily Recommended Intake (RDI) by gender - from Healthline/NIH
 const RDI = {
   male: {
-    vitA: 900, vitC: 90, vitD: 15, vitE: 15, vitK: 120,
-    vitB1: 1.2, vitB2: 1.3, vitB3: 16, vitB6: 1.3, vitB9: 400, vitB12: 2.4,
-    calcium: 1000, iron: 8, magnesium: 420, phosphorus: 700,
-    potassium: 3400, sodium: 2300, zinc: 11, selenium: 55, fiber: 38
+    // Fat-soluble
+    vitA: 900, vitD: 15, vitE: 15, vitK: 120,
+    // Water-soluble
+    vitC: 90, vitB1: 1.2, vitB2: 1.3, vitB3: 16, vitB5: 5, vitB6: 1.3, vitB7: 30, vitB9: 400, vitB12: 2.4,
+    // Macrominerals
+    calcium: 1000, phosphorus: 700, magnesium: 420, potassium: 3400, sodium: 1500,
+    // Trace minerals
+    iron: 8, zinc: 11, copper: 900, manganese: 2.3, selenium: 55, iodine: 150,
+    // Other
+    fiber: 38
   },
   female: {
-    vitA: 700, vitC: 75, vitD: 15, vitE: 15, vitK: 90,
-    vitB1: 1.1, vitB2: 1.1, vitB3: 14, vitB6: 1.3, vitB9: 400, vitB12: 2.4,
-    calcium: 1000, iron: 18, magnesium: 320, phosphorus: 700,
-    potassium: 2600, sodium: 2300, zinc: 8, selenium: 55, fiber: 25
+    // Fat-soluble
+    vitA: 700, vitD: 15, vitE: 15, vitK: 90,
+    // Water-soluble
+    vitC: 75, vitB1: 1.1, vitB2: 1.1, vitB3: 14, vitB5: 5, vitB6: 1.3, vitB7: 30, vitB9: 400, vitB12: 2.4,
+    // Macrominerals
+    calcium: 1000, phosphorus: 700, magnesium: 320, potassium: 2600, sodium: 1500,
+    // Trace minerals
+    iron: 18, zinc: 8, copper: 900, manganese: 1.8, selenium: 55, iodine: 150,
+    // Other
+    fiber: 25
   }
 };
 
