@@ -243,6 +243,39 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 .macro-input-row .form-group { margin-bottom: 0; }
 .per-100g-note { font-size: 0.6875rem; color: var(--gray-500); margin-top: -0.5rem; margin-bottom: 0.75rem; font-style: italic; }
 
+/* Ingredient Modal - Micronutrients */
+.ingredient-modal-form { max-height: 70vh; overflow-y: auto; }
+.fruit-veg-check { margin: 0.5rem 0; padding: 0.5rem 0.75rem; background: #F0FDF4; border-radius: var(--radius); border: 1px solid #BBF7D0; }
+.fruit-veg-check span { color: var(--gray-700); font-size: 0.8125rem; }
+.micros-toggle { width: 100%; padding: 0.5rem; border: 1px dashed var(--gray-300); background: transparent; border-radius: var(--radius); font-size: 0.75rem; color: var(--gray-500); cursor: pointer; margin: 0.75rem 0; }
+.micros-toggle:hover { border-color: var(--primary); color: var(--primary); background: var(--gray-50); }
+.micros-section { background: var(--gray-50); border-radius: var(--radius); padding: 0.75rem; margin-bottom: 0.75rem; }
+.micros-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+.micro-input { display: flex; flex-direction: column; gap: 0.125rem; }
+.micro-input label { font-size: 0.625rem; color: var(--gray-600); font-weight: 500; }
+.micro-input .micro-unit { color: var(--gray-400); font-weight: 400; }
+.micro-input input { padding: 0.375rem 0.5rem; border: 1px solid var(--gray-200); border-radius: 4px; font-size: 0.75rem; }
+.micro-input input:focus { outline: none; border-color: var(--primary); }
+
+/* Weekly Nutrition Bar */
+.weekly-nutrition-bar { background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 0.375rem 0.75rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; box-shadow: var(--shadow-sm); overflow-x: auto; }
+.weekly-nutrition-bar::-webkit-scrollbar { height: 4px; }
+.weekly-nutrition-bar::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 2px; }
+.nutrition-item { display: flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.5rem; background: var(--gray-50); border-radius: 4px; white-space: nowrap; transition: all 0.15s ease; }
+.nutrition-item.met { background: #DCFCE7; }
+.nutrition-item.met .nutrition-value { color: var(--success); }
+.nutrition-item.fruit-veg { background: #FEF3C7; flex-shrink: 0; }
+.nutrition-item.fruit-veg.met { background: #DCFCE7; }
+.nutrition-icon { font-size: 0.875rem; }
+.nutrition-label { font-size: 0.625rem; color: var(--gray-500); font-weight: 500; }
+.nutrition-value { font-size: 0.75rem; font-weight: 600; color: var(--gray-700); }
+.nutrition-target { font-size: 0.625rem; color: var(--gray-400); font-weight: 400; }
+.nutrition-divider { width: 1px; height: 20px; background: var(--gray-200); flex-shrink: 0; }
+.nutrition-micros { display: flex; gap: 0.375rem; flex-wrap: nowrap; }
+.nutrition-item.micro { padding: 0.125rem 0.375rem; font-size: 0.5625rem; }
+.nutrition-item.micro .nutrition-label { font-size: 0.5625rem; }
+.nutrition-item.micro .nutrition-value { font-size: 0.625rem; }
+
 /* Food Modal Tabs */
 .food-modal-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; background: var(--gray-100); border-radius: var(--radius); padding: 0.25rem; }
 .food-modal-tab { flex: 1; padding: 0.5rem; border: none; background: transparent; border-radius: 6px; font-size: 0.8125rem; font-weight: 500; color: var(--gray-600); cursor: pointer; transition: all 0.15s ease; }
@@ -297,6 +330,7 @@ body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 .ingredient-card:hover, .recipe-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 .ingredient-card-header, .recipe-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.75rem; }
 .ingredient-card-header h3, .recipe-card-header h3 { font-size: 1rem; font-weight: 600; color: var(--gray-800); margin: 0; }
+.fruit-veg-badge { font-size: 0.875rem; vertical-align: middle; }
 .ingredient-card-actions, .recipe-card-actions { display: flex; gap: 0.25rem; }
 .ingredient-card-actions button, .recipe-card-actions button { width: 28px; height: 28px; border: none; background: var(--gray-50); cursor: pointer; color: var(--gray-500); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; }
 .ingredient-card-actions button:hover, .recipe-card-actions button:hover { background: var(--gray-100); color: var(--gray-700); }
