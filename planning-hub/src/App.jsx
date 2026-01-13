@@ -1724,12 +1724,11 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
       if (dayHasData) daysWithData++;
     });
     
-    if (daysWithData === 0) return null;
-    
-    // Calculate daily averages and compare to RDI
+    // Calculate daily averages and compare to RDI (use 7 days for target even if no data)
+    const effectiveDays = daysWithData || 7;
     const microAvgs = {};
     MICRONUTRIENTS.forEach(m => {
-      const avg = microTotals[m.key] / daysWithData;
+      const avg = daysWithData > 0 ? microTotals[m.key] / daysWithData : 0;
       const target = rdi[m.key] || 0;
       microAvgs[m.key] = {
         value: Math.round(avg * 10) / 10,
@@ -1741,10 +1740,11 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
     
     return {
       fruitVegCount,
-      fruitVegTarget: FRUIT_VEG_DAILY_TARGET * daysWithData,
+      fruitVegTarget: FRUIT_VEG_DAILY_TARGET * 7, // Always show weekly target (5 per day × 7 days)
       microAvgs,
       daysWithData,
-      gender
+      gender,
+      rdi
     };
   })();
   
@@ -1814,10 +1814,10 @@ const PlannerView = ({ date, events, tasks, staff, macros, ingredients, recipes,
             <div className="nutrition-micros">
               {MICRONUTRIENTS.map(m => {
                 const data = weeklyNutrition.microAvgs[m.key];
-                if (!data || data.target === 0) return null;
+                if (!data) return null;
                 return (
-                  <div key={m.key} className={`nutrition-item micro ${data.met ? 'met' : ''}`} title={`${m.label}: ${data.value}${m.unit} / ${data.target}${m.unit} daily avg`}>
-                    <span className="nutrition-label">{m.label.replace('Vitamin ', 'Vit ')}</span>
+                  <div key={m.key} className={`nutrition-item micro ${data.met ? 'met' : ''}`} title={`${m.label}: ${data.value}${m.unit} avg/day (RDI: ${data.target}${m.unit})`}>
+                    <span className="nutrition-label">{m.label.replace('Vitamin ', 'Vit ').replace('B1 ', 'B1').replace('B2 ', 'B2').replace('B3 ', 'B3').replace('B9 ', 'B9')}</span>
                     <span className="nutrition-value">{data.percent}%</span>
                   </div>
                 );
