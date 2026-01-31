@@ -15,7 +15,7 @@ export function parseWorkoutDescription(description) {
     mdv: description.match(/MDV:([^]*?)$/i)?.[1] || ''
   };
   
-  // Check for threshold runs
+  // Check for threshold runs (MED section)
   const thresholdPattern = /(\d+)x\s*(\d+)min\s*@\s*threshold/gi;
   let match;
   while ((match = thresholdPattern.exec(description)) !== null) {
@@ -37,6 +37,31 @@ export function parseWorkoutDescription(description) {
         previous: null
       }))
     });
+  }
+  
+  // Check for overload runs (e.g., "3min threshold run" in Overload section)
+  const overloadRuns = description.match(/(\d+)min\s+(?:threshold\s+)?run(?!\s+@)/gi);
+  if (overloadRuns && overloadRuns.length > 0) {
+    // Group them
+    const runDurations = overloadRuns.map(r => parseInt(r.match(/(\d+)min/)[1]));
+    // Only add if not already captured by threshold pattern
+    if (runDurations.length > 0 && !description.match(/\d+x\s*\d+min\s*@\s*threshold.*?overload/is)) {
+      exercises.push({
+        id: exerciseId++,
+        name: 'Threshold Runs (Overload)',
+        type: 'cardio',
+        sets: runDurations.map((mins, i) => ({
+          setNum: i + 1,
+          distance: '',
+          time: `${mins}:00`,
+          avgHR: '',
+          pace: '',
+          rpe: '',
+          completed: false,
+          previous: null
+        }))
+      });
+    }
   }
   
   // Check for burpees
