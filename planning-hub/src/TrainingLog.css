@@ -1,0 +1,237 @@
+/* Training Log Styles - Mobile-First */
+
+.training-log {
+  max-width: 100%;
+  padding: 0;
+  background: #f5f5f5;
+  min-height: 100vh;
+}
+
+.training-header {
+  background: white;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.timer-display {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+}
+
+.icon-btn {
+  background: #f0f0f0;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.icon-btn:active {
+  background: #e0e0e0;
+}
+
+.finish-btn {
+  background: #10B981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.finish-btn:active {
+  background: #059669;
+}
+
+.workout-title {
+  background: white;
+  padding: 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.workout-title h2 {
+  margin: 0 0 4px 0;
+  font-size: 24px;
+  color: #1a1a1a;
+}
+
+.workout-date {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.exercise-block {
+  background: white;
+  margin: 16px 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.exercise-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.exercise-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #3B82F6;
+  font-weight: 600;
+}
+
+.exercise-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.sets-table {
+  padding: 16px;
+}
+
+.sets-header {
+  display: grid;
+  grid-template-columns: 40px 1fr 60px 60px 60px 40px;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-align: center;
+}
+
+.sets-header.cardio {
+  grid-template-columns: 40px 1fr 60px 60px 60px 40px;
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 60px 60px 60px 40px;
+  gap: 8px;
+  padding: 12px 0;
+  align-items: center;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.set-row:last-child {
+  border-bottom: none;
+}
+
+.set-row.completed {
+  opacity: 0.6;
+}
+
+.set-num {
+  background: #f0f0f0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.previous-data {
+  font-size: 12px;
+  color: #666;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.hr-indicator {
+  color: #EF4444;
+  font-weight: 600;
+}
+
+.input-field {
+  background: #f8f8f8;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 10px 8px;
+  font-size: 16px;
+  text-align: center;
+  width: 100%;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: #3B82F6;
+  background: white;
+}
+
+.check-btn {
+  width: 32px;
+  height: 32px;
+  border: 2px solid #e0e0e0;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.check-btn.checked {
+  background: #10B981;
+  border-color: #10B981;
+}
+
+.check-btn.checked svg {
+  stroke: white;
+}
+
+.add-set-btn {
+  width: calc(100% - 32px);
+  margin: 16px;
+  padding: 12px;
+  background: #f5f5f5;
+  border: 2px dashed #d0d0d0;
+  border-radius: 8px;
+  color: #666;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.add-set-btn:active {
+  background: #e8e8e8;
+}
+
+/* Mobile optimizations */
+@media (max-width: 600px) {
+  .sets-header,
+  .set-row {
+    grid-template-columns: 36px 1fr 55px 55px 55px 36px;
+    gap: 4px;
+  }
+  
+  .input-field {
+    font-size: 14px;
+    padding: 8px 4px;
+  }
+  
+  .previous-data {
+    font-size: 11px;
+  }
+}

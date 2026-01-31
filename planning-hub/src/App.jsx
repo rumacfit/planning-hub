@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { saveData, subscribeToData } from './firebase';
+import TrainingLog from './TrainingLog';
 import './App.css';
 
 // Icons
@@ -3230,6 +3231,7 @@ function App() {
         <div className="logo"><CalendarIcon /><h1>Planning Hub</h1></div>
         <nav className="nav-tabs">
           <button className={`nav-tab ${activeView === 'planner' ? 'active' : ''}`} onClick={() => setActiveView('planner')}><ClockIcon /> Planner</button>
+          <button className={`nav-tab ${activeView === 'training' ? 'active' : ''}`} onClick={() => setActiveView('training')}><ChartIcon /> Training</button>
           <button className={`nav-tab ${activeView === 'monthly' ? 'active' : ''}`} onClick={() => setActiveView('monthly')}><GridIcon /> Monthly</button>
           <button className={`nav-tab ${activeView === 'staff' ? 'active' : ''}`} onClick={() => setActiveView('staff')}><CalendarIcon /> Calendar</button>
           <button className={`nav-tab ${activeView === 'meals' ? 'active' : ''}`} onClick={() => setActiveView('meals')}><UtensilsIcon /> Meals</button>
@@ -3252,6 +3254,7 @@ function App() {
       
       <main className="app-main">
         {activeView === 'planner' && <PlannerView date={currentDate} events={events} tasks={tasks} staff={staff} macros={macros} ingredients={ingredients} recipes={recipes} mealPlans={mealPlans} weeklyGoals={weeklyGoals} currentStaffId={currentStaffId} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onToggleEvent={handleToggleEvent} onReorderTask={handleReorderTask} onNavigate={navigateDate} onToday={goToToday} onSaveMacros={handleSaveMacros} onCopyWeek={handleCopyWeek} onSaveMealPlan={handleSaveMealPlan} onSaveWeeklyGoals={handleSaveWeeklyGoals} />}
+        {activeView === 'training' && <TrainingLog todayEvent={events.find(e => e.startDate === formatDate(currentDate) && e.title.toLowerCase().includes('training'))} previousWorkouts={[]} onSave={(data) => console.log('Save workout:', data)} onFinish={(data, timer) => console.log('Finish workout:', data, timer)} />}
         {activeView === 'monthly' && <MonthlyView date={currentDate} events={events} staff={staff} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onDateClick={handleDayClick} onNavigate={navigateDate} onToday={goToToday} onAddEvent={openAddEvent} />}
         {activeView === 'staff' && <StaffCalendarView year={currentYear} staff={staff} events={events} selectedStaffId={selectedStaffId} onSelectStaff={setSelectedStaffId} onAddStaff={() => { setEditingStaff(null); setStaffModalOpen(true); }} onEditStaff={(s) => { setEditingStaff(s); setStaffModalOpen(true); }} onDeleteStaff={handleDeleteStaff} onDateClick={handleDayClick} onYearChange={setCurrentYear} onAddEvent={openAddEvent} />}
         {activeView === 'meals' && <MealsView recipes={recipes} ingredients={ingredients} onSave={handleSaveRecipe} onDelete={handleDeleteRecipe} />}
