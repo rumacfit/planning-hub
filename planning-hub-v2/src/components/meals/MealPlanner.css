@@ -1,0 +1,32 @@
+.meal-planner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.meal-header h2 {
+  margin-bottom: var(--space-2);
+}
+
+.meal-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12);
+  text-align: center;
+}
+
+.meal-empty-icon {
+  font-size: 64px;
+  margin-bottom: var(--space-4);
+  opacity: 0.5;
+}
+
+.meal-empty h3 {
+  margin-bottom: var(--space-2);
+}
+
+.meal-empty p {
+  max-width: 400px;
+}
