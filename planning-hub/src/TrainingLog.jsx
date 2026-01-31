@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { parseWorkoutDescription, getPreviousWorkout } from './workoutParser';
 import './TrainingLog.css';
 
 // Icons
@@ -36,22 +37,25 @@ const TrainingLog = ({ todayEvent, previousWorkouts, onSave, onFinish }) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
   
-  const parseWorkoutDescription = (description) => {
-    // Parse the workout description to extract exercises
-    // For now, return sample data structure
-    return [
-      {
-        id: 1,
-        name: 'Threshold Run',
-        type: 'cardio',
-        sets: [
-          { setNum: 1, distance: 1, time: '', avgHR: '', pace: '', rpe: '', completed: false, previous: { distance: 1, time: '4:07', avgHR: 165 } },
-          { setNum: 2, distance: 1, time: '', avgHR: '', pace: '', rpe: '', completed: false, previous: { distance: 1, time: '4:02', avgHR: 168 } },
-          { setNum: 3, distance: 1, time: '', avgHR: '', pace: '', rpe: '', completed: false, previous: { distance: 1, time: '4:03', avgHR: 167 } }
-        ]
-      }
-    ];
-  };
+  // Load previous workouts and populate "previous" data
+  useEffect(() => {
+    if (exercises.length > 0 && previousWorkouts?.length > 0) {
+      const updatedExercises = exercises.map(ex => {
+        const prevEx = getPreviousWorkout(ex.name, previousWorkouts);
+        if (prevEx) {
+          return {
+            ...ex,
+            sets: ex.sets.map((set, i) => ({
+              ...set,
+              previous: prevEx.sets[i] || null
+            }))
+          };
+        }
+        return ex;
+      });
+      setExercises(updatedExercises);
+    }
+  }, [previousWorkouts]);
   
   const updateSet = (exerciseId, setNum, field, value) => {
     setExercises(exercises.map(ex => {
