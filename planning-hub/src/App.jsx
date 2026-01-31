@@ -2926,7 +2926,13 @@ function App() {
   useEffect(() => {
     const unsubscribe = subscribeToData((data) => {
       if (data) {
-        const migratedEvents = (data.events || []).map(e => ({
+        // Convert events object to array if needed
+        let eventsArray = data.events || [];
+        if (typeof eventsArray === 'object' && !Array.isArray(eventsArray)) {
+          eventsArray = Object.values(eventsArray);
+        }
+        
+        const migratedEvents = eventsArray.map(e => ({
           ...e,
           staffIds: e.staffIds || (e.staffId ? [e.staffId] : [])
         }));
