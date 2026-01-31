@@ -1,109 +1,83 @@
 /**
- * FITR Workout Parser - v2 Complete Rewrite
- * 
- * Handles all FITR workout formats:
- * - MED (Minimum Effective Dose)
- * - Overload (intensity days)
- * - Performance Layer
- * - MDV (Maximum Daily Volume)
+ * FITR Workout Parser - v3 Complete Cardio Fix
+ * Handles ALL FITR cardio formats from real data
  */
 
-const DEBUG = true; // Enable logging
+const DEBUG = true;
 
 const log = (...args) => {
   if (DEBUG) console.log('[Parser]', ...args);
 };
 
-/**
- * Main parser function
- */
 export function parseWorkoutDescription(description) {
   if (!description || typeof description !== 'string') {
-    log('No description provided');
     return [];
   }
   
-  log('='.repeat(80));
-  log('Parsing workout description:', description.substring(0, 100) + '...');
+  log('=== Parsing workout ===');
   
   const exercises = [];
   let id = 1;
   
-  // Check if this is a structured FITR workout
-  const hasStructuredSections = /(?:Minimum\s+Effective\s+Dose|MED|Overload|Performance\s+Layer|Maximum\s+Daily\s+Volume|MDV)/i.test(description);
-  
-  if (!hasStructuredSections) {
-    log('No structured sections found, parsing as simple workout');
-    return parseSimpleWorkout(description);
-  }
-  
   // Extract sections
   const sections = extractSections(description);
-  log('Found sections:', Object.keys(sections));
   
   // Parse each section
   if (sections.med) {
     exercises.push(createHeader(id++, 'MED'));
     const medExercises = parseMEDSection(sections.med);
     medExercises.forEach(ex => exercises.push({ ...ex, id: id++ }));
-    log(`MED: ${medExercises.length} exercises`);
   }
   
   if (sections.overload) {
     exercises.push(createHeader(id++, 'Overload'));
     const overloadExercises = parseOverloadSection(sections.overload);
     overloadExercises.forEach(ex => exercises.push({ ...ex, id: id++ }));
-    log(`Overload: ${overloadExercises.length} exercises`);
   }
   
   if (sections.performance) {
     exercises.push(createHeader(id++, 'Performance Layer'));
     const perfExercises = parsePerformanceSection(sections.performance);
     perfExercises.forEach(ex => exercises.push({ ...ex, id: id++ }));
-    log(`Performance: ${perfExercises.length} exercises`);
   }
   
   if (sections.mdv) {
     exercises.push(createHeader(id++, 'MDV'));
     const mdvExercises = parseMDVSection(sections.mdv);
     mdvExercises.forEach(ex => exercises.push({ ...ex, id: id++ }));
-    log(`MDV: ${mdvExercises.length} exercises`);
   }
   
-  log(`Total exercises parsed: ${exercises.filter(e => e.type !== 'header').length}`);
-  log('='.repeat(80));
+  // Fallback: parse strength exercises from full description
+  const strengthExercises = parseStrengthExercises(description);
+  strengthExercises.forEach(ex => exercises.push({ ...ex, id: id++ }));
+  
+  log(`Total exercises: ${exercises.filter(e => e.type !== 'header').length}`);
   
   return exercises;
 }
 
-/**
- * Extract sections from description
- */
 function extractSections(description) {
   const sections = {};
   
-  // MED section
-  const medMatch = description.match(/(?:Minimum\s+Effective\s+Dose|Part\s+1\s+—\s+Minimum\s+Effective\s+Dose|MED)[:\s]*\(?\s*MED\s*\)?[:\s]*([^]*?)(?=(?:Overload|Performance\s+Layer|Part\s+2|Maximum\s+Daily\s+Volume|MDV|Part\s+3|Coach'?s?\s+Note)[:\s]|$)/i);
+  // MED
+  const medMatch = description.match(/MED:([^]*?)(?=Performance:|Overload:|MDV:|$)/i);
   if (medMatch) sections.med = medMatch[1].trim();
   
-  // Overload section
-  const overloadMatch = description.match(/Overload[:\s]*([^]*?)(?=(?:Performance\s+Layer|Maximum\s+Daily\s+Volume|MDV|Coach'?s?\s+Note)[:\s]|$)/i);
+  // Overload
+  const overloadMatch = description.match(/Overload:([^]*?)(?=Performance:|MDV:|$)/i);
   if (overloadMatch) sections.overload = overloadMatch[1].trim();
   
-  // Performance Layer
-  const perfMatch = description.match(/(?:Performance\s+Layer|Part\s+2\s+—\s+Performance\s+Layer)[:\s]*([^]*?)(?=(?:Maximum\s+Daily\s+Volume|Part\s+3|MDV|Coach'?s?\s+Note)[:\s]|$)/i);
+  // Performance
+  const perfMatch = description.match(/Performance:([^]*?)(?=MDV:|$)/i);
   if (perfMatch) sections.performance = perfMatch[1].trim();
   
-  // MDV section
-  const mdvMatch = description.match(/(?:Maximum\s+Daily\s+Volume|Part\s+3\s+—\s+Maximum\s+Daily\s+Volume|MDV)[:\s]*\(?\s*MDV\s*\)?[:\s]*([^]*?)(?=Coach'?s?\s+Note|$)/i);
+  // MDV
+  const mdvMatch = description.match(/MDV:([^]*?)$/i);
   if (mdvMatch) sections.mdv = mdvMatch[1].trim();
   
   return sections;
 }
 
-/**
- * Create section header
- */
 function createHeader(id, name) {
   return {
     id: `header-${id}`,
@@ -113,107 +87,16 @@ function createHeader(id, name) {
   };
 }
 
-/**
- * Parse MED (Minimum Effective Dose) section
- */
 function parseMEDSection(text) {
   const exercises = [];
   
-  // Aerobic base: "Aerobic Run Base Structure: 20 minutes @ Zone 2"
-  const aerobicMatch = text.match(/Aerobic\s+(?:Run\s+)?Base\s+Structure:([^]*?)(?=Week\s+\d+\s+Progression|Strides|Air\s+Squats|Part\s+\d+|$)/i);
-  if (aerobicMatch) {
-    const aerobicText = aerobicMatch[1];
-    // Extract all zone times
-    const timeMatches = [...aerobicText.matchAll(/(\d+)\s+minutes\s+@\s+Zone\s+(\d)/gi)];
-    if (timeMatches.length > 0) {
-      const totalMinutes = timeMatches.reduce((sum, m) => sum + parseInt(m[1]), 0);
-      exercises.push({
-        name: 'Aerobic Base',
-        type: 'cardio',
-        sets: [{
-          setNum: 1,
-          distance: '',
-          time: `${totalMinutes}:00`,
-          avgHR: '',
-          pace: '',
-          rpe: '',
-          completed: false,
-          previous: null
-        }]
-      });
-      log(`  Found aerobic base: ${totalMinutes} minutes`);
-    }
-  }
-  
-  // Strides: "8 × 100 metres" or "Strides (15 x 100m)"
-  const stridesMatch = text.match(/(?:Strides.*?(\d+)\s*[x×]\s*(\d+)\s*(?:metres?|m))|(\d+)\s*[x×]\s*(\d+)\s*m\s+strides/i);
-  if (stridesMatch) {
-    const sets = parseInt(stridesMatch[1] || stridesMatch[3]);
-    const distance = parseInt(stridesMatch[2] || stridesMatch[4]);
+  // Zone work: "15min Z2 → 15min Z3 → 20min Z2"
+  const zonePattern = /(\d+)min\s+Z(\d)/gi;
+  const zoneMatches = [...text.matchAll(zonePattern)];
+  if (zoneMatches.length > 0) {
+    const totalMinutes = zoneMatches.reduce((sum, m) => sum + parseInt(m[1]), 0);
     exercises.push({
-      name: 'Strides',
-      type: 'cardio',
-      sets: Array.from({ length: sets }, (_, i) => ({
-        setNum: i + 1,
-        distance: distance / 1000,
-        time: '',
-        avgHR: '',
-        pace: '',
-        rpe: '',
-        completed: false,
-        previous: null
-      }))
-    });
-    log(`  Found strides: ${sets} x ${distance}m`);
-  }
-  
-  // Air squats / Backward lunges: "120 air squats" or "120x Backward Lunges"
-  const squatsMatch = text.match(/(\d+)\s*(?:x\s*)?(?:air\s*)?(?:squats?|backward\s+lunges?)/i);
-  if (squatsMatch) {
-    const reps = parseInt(squatsMatch[1]);
-    const name = text.toLowerCase().includes('lunge') ? 'Backward Lunges' : 'Air Squats';
-    exercises.push({
-      name,
-      type: 'strength',
-      sets: [{
-        setNum: 1,
-        weight: 0,
-        reps,
-        completed: false,
-        previous: null
-      }]
-    });
-    log(`  Found ${name}: ${reps} reps`);
-  }
-  
-  // Threshold runs: "3x 8min @ threshold"
-  const thresholdMatch = text.match(/(\d+)\s*[x×]\s*(\d+)\s*min(?:utes?)?\s+@\s+threshold/i);
-  if (thresholdMatch) {
-    const sets = parseInt(thresholdMatch[1]);
-    const minutes = parseInt(thresholdMatch[2]);
-    exercises.push({
-      name: `Threshold Run - ${minutes}min`,
-      type: 'cardio',
-      sets: Array.from({ length: sets }, (_, i) => ({
-        setNum: i + 1,
-        distance: '',
-        time: `${minutes}:00`,
-        avgHR: '',
-        pace: '',
-        rpe: '',
-        completed: false,
-        previous: null
-      }))
-    });
-    log(`  Found threshold run: ${sets} x ${minutes}min`);
-  }
-  
-  // Zone work: "60 Minutes Total" with "10 minutes @ Zone 2"
-  const zoneBlockMatch = text.match(/(\d+)\s+Minutes?\s+Total[^]*?(\d+)\s+minutes?\s+@\s+Zone\s+(\d)/i);
-  if (zoneBlockMatch && !aerobicMatch) { // Don't double-count aerobic base
-    const totalMinutes = parseInt(zoneBlockMatch[1]);
-    exercises.push({
-      name: 'Aerobic Base',
+      name: `Aerobic Base - ${totalMinutes}min`,
       type: 'cardio',
       sets: [{
         setNum: 1,
@@ -222,25 +105,51 @@ function parseMEDSection(text) {
         avgHR: '',
         pace: '',
         rpe: '',
-        completed: false,
-        previous: null
+        completed: false
       }]
     });
-    log(`  Found zone work: ${totalMinutes} minutes`);
   }
   
-  return exercises;
-}
-
-/**
- * Parse Overload section
- */
-function parseOverloadSection(text) {
-  const exercises = [];
+  // StairMaster: "65min StairMaster @ Z2"
+  const stairMatch = text.match(/(\d+)min\s+(?:StairMaster|Stairmaster|stair)/i);
+  if (stairMatch) {
+    const minutes = parseInt(stairMatch[1]);
+    exercises.push({
+      name: `StairMaster - ${minutes}min`,
+      type: 'cardio',
+      sets: [{
+        setNum: 1,
+        distance: '',
+        time: `${minutes}:00`,
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false
+      }]
+    });
+  }
   
-  // Similar patterns to MED but may have different keywords
-  // Threshold runs
-  const thresholdMatch = text.match(/(\d+)\s*[x×]\s*(\d+)\s*min(?:utes?)?\s+@\s+threshold/i);
+  // Bike: "55min Bike @ Z1"
+  const bikeMatch = text.match(/(\d+)min\s+Bike\s+@\s+Z(\d)/i);
+  if (bikeMatch) {
+    const minutes = parseInt(bikeMatch[1]);
+    exercises.push({
+      name: `Zone ${bikeMatch[2]} Bike - ${minutes}min`,
+      type: 'cardio',
+      sets: [{
+        setNum: 1,
+        distance: '',
+        time: `${minutes}:00`,
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false
+      }]
+    });
+  }
+  
+  // Threshold runs: "3x 8min @ threshold" or "5x 5min @ threshold"
+  const thresholdMatch = text.match(/(\d+)x\s+(\d+)min\s+@\s+threshold/i);
   if (thresholdMatch) {
     const sets = parseInt(thresholdMatch[1]);
     const minutes = parseInt(thresholdMatch[2]);
@@ -254,68 +163,105 @@ function parseOverloadSection(text) {
         avgHR: '',
         pace: '',
         rpe: '',
-        completed: false,
-        previous: null
+        completed: false
       }))
     });
-    log(`  Found overload threshold: ${sets} x ${minutes}min`);
   }
   
-  // Sled work
-  const sledMatch = text.match(/(\d+)\s*m\s+sled\s+(?:push|pull)/i);
-  if (sledMatch) {
-    const distance = parseInt(sledMatch[1]);
-    const type = text.toLowerCase().includes('pull') ? 'Sled Pull' : 'Sled Push';
+  // Strides: "8-10x 15-20sec"
+  const stridesMatch = text.match(/Strides?:?\s*(\d+)(?:-(\d+))?\s*x\s*(\d+)(?:-(\d+))?\s*sec/i);
+  if (stridesMatch) {
+    const sets = parseInt(stridesMatch[2] || stridesMatch[1]);
     exercises.push({
-      name: type,
+      name: 'Strides',
       type: 'cardio',
-      sets: [{
-        setNum: 1,
-        distance: distance / 1000,
+      sets: Array.from({ length: sets }, (_, i) => ({
+        setNum: i + 1,
+        distance: 0.1,
         time: '',
         avgHR: '',
         pace: '',
         rpe: '',
-        completed: false,
-        previous: null
-      }]
+        completed: false
+      }))
     });
-    log(`  Found ${type}: ${distance}m`);
   }
   
-  // Wall balls
-  const wallBallsMatch = text.match(/(\d+)\s*(?:x\s*)?wall\s*balls?/i);
-  if (wallBallsMatch) {
-    const reps = parseInt(wallBallsMatch[1]);
+  // Backward lunges: "120 backward lunges"
+  const lungesMatch = text.match(/(\d+)\s+backward\s+lunges/i);
+  if (lungesMatch) {
+    exercises.push({
+      name: 'Backward Lunges',
+      type: 'strength',
+      sets: [{
+        setNum: 1,
+        weight: 0,
+        reps: parseInt(lungesMatch[1]),
+        completed: false
+      }]
+    });
+  }
+  
+  // Burpee broad jumps: "15 burpee broad jumps"
+  const burpeeJumpMatch = text.match(/(\d+)\s+burpee\s+broad\s+jump/i);
+  if (burpeeJumpMatch) {
+    exercises.push({
+      name: 'Burpee Broad Jump',
+      type: 'strength',
+      sets: [{
+        setNum: 1,
+        weight: 0,
+        reps: parseInt(burpeeJumpMatch[1]),
+        completed: false
+      }]
+    });
+  }
+  
+  // Wall balls: "35 wall balls"
+  const wallBallMatch = text.match(/(\d+)\s+wall\s+balls/i);
+  if (wallBallMatch) {
     exercises.push({
       name: 'Wall Balls',
       type: 'strength',
       sets: [{
         setNum: 1,
         weight: 0,
-        reps,
-        completed: false,
-        previous: null
+        reps: parseInt(wallBallMatch[1]),
+        completed: false
       }]
     });
-    log(`  Found wall balls: ${reps} reps`);
+  }
+  
+  // Sled drag: "50m sled drag"
+  const sledDragMatch = text.match(/(\d+)m\s+sled\s+drag/i);
+  if (sledDragMatch) {
+    exercises.push({
+      name: 'Sled Drag',
+      type: 'cardio',
+      sets: [{
+        setNum: 1,
+        distance: parseInt(sledDragMatch[1]) / 1000,
+        time: '',
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false
+      }]
+    });
   }
   
   return exercises;
 }
 
-/**
- * Parse Performance Layer section
- */
-function parsePerformanceSection(text) {
+function parseOverloadSection(text) {
   const exercises = [];
   
-  // Machine intervals: "7 minutes on Bike / Ski / Row" or "40 sec work @ race-feel"
-  const machineIntervalMatch = text.match(/(\d+)\s*minutes?\s+on\s+(?:Bike|Ski|Row)/i);
-  if (machineIntervalMatch) {
-    const minutes = parseInt(machineIntervalMatch[1]);
+  // Threshold runs in overload: "3min threshold run"
+  const thresholdMatches = [...text.matchAll(/(\d+)min\s+threshold\s+run/gi)];
+  thresholdMatches.forEach(match => {
+    const minutes = parseInt(match[1]);
     exercises.push({
-      name: 'Machine Conditioning',
+      name: `Threshold Run - ${minutes}min`,
       type: 'cardio',
       sets: [{
         setNum: 1,
@@ -324,204 +270,375 @@ function parsePerformanceSection(text) {
         avgHR: '',
         pace: '',
         rpe: '',
-        completed: false,
-        previous: null
+        completed: false
       }]
     });
-    log(`  Found machine conditioning: ${minutes} minutes`);
+  });
+  
+  // Sled push: "50m sled push"
+  const sledPushMatch = text.match(/(\d+)m\s+sled\s+push/i);
+  if (sledPushMatch) {
+    exercises.push({
+      name: 'Sled Push',
+      type: 'cardio',
+      sets: [{
+        setNum: 1,
+        distance: parseInt(sledPushMatch[1]) / 1000,
+        time: '',
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false
+      }]
+    });
   }
   
-  // Bike work: "4 × 9-minute sets on Echo Bike"
-  const bikeSetMatch = text.match(/(\d+)\s*[x×]\s*(\d+)-minute\s+sets?\s+on\s+(?:Echo\s+)?Bike/i);
-  if (bikeSetMatch) {
-    const sets = parseInt(bikeSetMatch[1]);
-    const minutes = parseInt(bikeSetMatch[2]);
+  // Ski: "1000m Ski @ race"
+  const skiMatch = text.match(/(\d+)m\s+Ski/i);
+  if (skiMatch) {
+    exercises.push({
+      name: 'Ski Erg',
+      type: 'cardio',
+      sets: [{
+        setNum: 1,
+        distance: parseInt(skiMatch[1]) / 1000,
+        time: '',
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false
+      }]
+    });
+  }
+  
+  // Burpee broad jump: "80m burpee broad jump"
+  const burpeeMatch = text.match(/(\d+)m\s+burpee\s+broad\s+jump/i);
+  if (burpeeMatch) {
+    exercises.push({
+      name: 'Burpee Broad Jump',
+      type: 'cardio',
+      sets: [{
+        setNum: 1,
+        distance: parseInt(burpeeMatch[1]) / 1000,
+        time: '',
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false
+      }]
+    });
+  }
+  
+  // Wall balls: "110 wall balls"
+  const wallBallMatch = text.match(/(\d+)\s+wall\s+balls/i);
+  if (wallBallMatch) {
+    exercises.push({
+      name: 'Wall Balls',
+      type: 'strength',
+      sets: [{
+        setNum: 1,
+        weight: 0,
+        reps: parseInt(wallBallMatch[1]),
+        completed: false
+      }]
+    });
+  }
+  
+  // Wall Ball EMOM: "10min, 16-19 wall balls/min"
+  const emomMatch = text.match(/Wall\s+Ball\s+EMOM:\s*(\d+)min/i);
+  if (emomMatch) {
+    exercises.push({
+      name: 'Wall Ball EMOM',
+      type: 'cardio',
+      sets: [{
+        setNum: 1,
+        distance: '',
+        time: `${emomMatch[1]}:00`,
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false
+      }]
+    });
+  }
+  
+  return exercises;
+}
+
+function parsePerformanceSection(text) {
+  const exercises = [];
+  
+  // Echo Bike: "8x 50sec Echo Bike"
+  const bikeMatch = text.match(/(\d+)x\s+(\d+)sec\s+Echo\s+Bike/i);
+  if (bikeMatch) {
+    const sets = parseInt(bikeMatch[1]);
+    const seconds = parseInt(bikeMatch[2]);
     exercises.push({
       name: 'Echo Bike',
       type: 'cardio',
       sets: Array.from({ length: sets }, (_, i) => ({
         setNum: i + 1,
         distance: '',
-        time: `${minutes}:00`,
+        time: `0:${seconds}`,
         avgHR: '',
         pace: '',
         rpe: '',
-        completed: false,
-        previous: null
+        completed: false
       }))
     });
-    log(`  Found bike sets: ${sets} x ${minutes}min`);
   }
   
-  // Burpees: "15 double push-up burpees" or "4–15 burpees"
-  const burpeesMatch = text.match(/(\d+)(?:–(\d+))?\s+(?:double\s+push-up\s+)?burpees?/i);
-  if (burpeesMatch) {
-    const reps = parseInt(burpeesMatch[2] || burpeesMatch[1]);
+  // Row: "8x 50sec row"
+  const rowMatch = text.match(/(\d+)x\s+(\d+)sec\s+row/i);
+  if (rowMatch) {
+    const sets = parseInt(rowMatch[1]);
+    const seconds = parseInt(rowMatch[2]);
     exercises.push({
-      name: 'Burpees',
-      type: 'strength',
-      sets: [{
-        setNum: 1,
-        weight: 0,
-        reps,
-        completed: false,
-        previous: null
-      }]
-    });
-    log(`  Found burpees: ${reps} reps`);
-  }
-  
-  // Strength exercises - parse as list
-  const strengthExercises = parseStrengthExercises(text);
-  strengthExercises.forEach(ex => {
-    exercises.push(ex);
-    log(`  Found strength exercise: ${ex.name}`);
-  });
-  
-  return exercises;
-}
-
-/**
- * Parse MDV (Maximum Daily Volume) section
- */
-function parseMDVSection(text) {
-  const exercises = [];
-  
-  // Continuous aerobic work: "25 minutes continuous aerobic work"
-  const continuousMatch = text.match(/(\d+)\s+minutes?\s+continuous\s+aerobic\s+work/i);
-  if (continuousMatch) {
-    const minutes = parseInt(continuousMatch[1]);
-    exercises.push({
-      name: 'Aerobic Base',
-      type: 'cardio',
-      sets: [{
-        setNum: 1,
-        distance: '',
-        time: `${minutes}:00`,
-        avgHR: '',
-        pace: '',
-        rpe: '',
-        completed: false,
-        previous: null
-      }]
-    });
-    log(`  Found continuous aerobic: ${minutes} minutes`);
-  }
-  
-  // Interval work: "12 sets, 20 sec work @ RPE 7–8"
-  const intervalMatch = text.match(/(\d+)\s+sets?[,\s]+(\d+)\s+sec\s+work/i);
-  if (intervalMatch) {
-    const sets = parseInt(intervalMatch[1]);
-    const seconds = parseInt(intervalMatch[2]);
-    // Extract machine type if mentioned
-    const machineMatch = text.match(/Machine:\s+([^.\n]+)/i);
-    const machineName = machineMatch ? machineMatch[1].split('/')[0].trim() : 'Cardio Intervals';
-    
-    exercises.push({
-      name: machineName,
+      name: 'Row',
       type: 'cardio',
       sets: Array.from({ length: sets }, (_, i) => ({
         setNum: i + 1,
         distance: '',
-        time: `0:${seconds.toString().padStart(2, '0')}`,
+        time: `0:${seconds}`,
         avgHR: '',
         pace: '',
         rpe: '',
-        completed: false,
-        previous: null
+        completed: false
       }))
     });
-    log(`  Found intervals: ${sets} x ${seconds}sec`);
+  }
+  
+  // Ski: "8x 20sec ski"
+  const skiMatch = text.match(/(\d+)x\s+(\d+)sec\s+ski/i);
+  if (skiMatch) {
+    const sets = parseInt(skiMatch[1]);
+    const seconds = parseInt(skiMatch[2]);
+    exercises.push({
+      name: 'Ski Erg',
+      type: 'cardio',
+      sets: Array.from({ length: sets }, (_, i) => ({
+        setNum: i + 1,
+        distance: '',
+        time: `0:${seconds}`,
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false
+      }))
+    });
+  }
+  
+  // Wall balls: "35 wall balls"
+  const wallBallMatch = text.match(/(\d+)\s+wall\s+balls/i);
+  if (wallBallMatch) {
+    exercises.push({
+      name: 'Wall Balls',
+      type: 'strength',
+      sets: [{
+        setNum: 1,
+        weight: 0,
+        reps: parseInt(wallBallMatch[1]),
+        completed: false
+      }]
+    });
+  }
+  
+  // Lateral burpees: "20 lateral burpees"
+  const lateralBurpeeMatch = text.match(/(\d+)\s+lateral\s+burpees/i);
+  if (lateralBurpeeMatch) {
+    exercises.push({
+      name: 'Lateral Burpees',
+      type: 'strength',
+      sets: [{
+        setNum: 1,
+        weight: 0,
+        reps: parseInt(lateralBurpeeMatch[1]),
+        completed: false
+      }]
+    });
+  }
+  
+  // DB clean & press: "15 dual DB clean & press"
+  const cleanPressMatch = text.match(/(\d+)\s+dual\s+DB\s+clean\s+&\s+press/i);
+  if (cleanPressMatch) {
+    exercises.push({
+      name: 'Dual DB Clean & Press',
+      type: 'strength',
+      sets: [{
+        setNum: 1,
+        weight: 0,
+        reps: parseInt(cleanPressMatch[1]),
+        completed: false
+      }]
+    });
   }
   
   return exercises;
 }
 
-/**
- * Parse strength exercises from text
- */
-function parseStrengthExercises(text) {
+function parseMDVSection(text) {
   const exercises = [];
-  const lines = text.split('\n');
   
-  const strengthExercisePatterns = [
-    /(?:Barbell|Dumbbell|Cable|Machine)\s+[A-Z][a-z\s]+/,
-    /Front\s+Squat|Back\s+Squat|Bench\s+Press|Overhead\s+Press|Deadlift/i,
-    /Squat\s+Jump|Broad\s+Jump|Push[- ]?Ups?/i,
-    /Hack\s+Squat|Leg\s+Press|Leg\s+Curl|Calf\s+Raise/i,
-    /Pendlay\s+Row|Seated\s+Row|Pull[- ]?Ups?/i,
-    /Sled\s+(?:Push|Pull)/i
+  // Ski: "5x 500m Ski @ race pace"
+  const skiMatch = text.match(/(\d+)x\s+(\d+)m\s+Ski/i);
+  if (skiMatch) {
+    const sets = parseInt(skiMatch[1]);
+    const distance = parseInt(skiMatch[2]);
+    exercises.push({
+      name: 'Ski Erg',
+      type: 'cardio',
+      sets: Array.from({ length: sets }, (_, i) => ({
+        setNum: i + 1,
+        distance: distance / 1000,
+        time: '',
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false
+      }))
+    });
+  }
+  
+  // Burpee broad jump: "60m burpee broad jump"
+  const burpeeMatch = text.match(/(\d+)m\s+burpee\s+broad\s+jump/i);
+  if (burpeeMatch) {
+    exercises.push({
+      name: 'Burpee Broad Jump',
+      type: 'cardio',
+      sets: [{
+        setNum: 1,
+        distance: parseInt(burpeeMatch[1]) / 1000,
+        time: '',
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false
+      }]
+    });
+  }
+  
+  // Bike: "8min Bike @ Zone 3" or "25min Bike @ Z1"
+  const bikeMatch = text.match(/(\d+)min\s+Bike\s+@\s+(?:Zone\s+)?Z?(\d)/i);
+  if (bikeMatch) {
+    const minutes = parseInt(bikeMatch[1]);
+    exercises.push({
+      name: `Zone ${bikeMatch[2]} Bike`,
+      type: 'cardio',
+      sets: [{
+        setNum: 1,
+        distance: '',
+        time: `${minutes}:00`,
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false
+      }]
+    });
+  }
+  
+  // Row intervals: "5x 30sec hard row"
+  const rowMatch = text.match(/(\d+)x\s+(\d+)sec\s+(?:hard\s+)?row/i);
+  if (rowMatch) {
+    const sets = parseInt(rowMatch[1]);
+    const seconds = parseInt(rowMatch[2]);
+    exercises.push({
+      name: 'Row Intervals',
+      type: 'cardio',
+      sets: Array.from({ length: sets }, (_, i) => ({
+        setNum: i + 1,
+        distance: '',
+        time: `0:${seconds}`,
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false
+      }))
+    });
+  }
+  
+  // Breathwork: "10-12min parasympathetic breathwork"
+  const breathworkMatch = text.match(/(\d+)(?:-(\d+))?\s*min\s+(?:parasympathetic\s+)?breathwork/i);
+  if (breathworkMatch) {
+    const minutes = parseInt(breathworkMatch[2] || breathworkMatch[1]);
+    exercises.push({
+      name: 'Breathwork',
+      type: 'cardio',
+      sets: [{
+        setNum: 1,
+        distance: '',
+        time: `${minutes}:00`,
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false
+      }]
+    });
+  }
+  
+  return exercises;
+}
+
+function parseStrengthExercises(description) {
+  const exercises = [];
+  
+  const patterns = [
+    { pattern: /Front\s+Squat:\s*(\d+)x\s+(\d+)(?:-(\d+))?/i, name: 'Front Squat' },
+    { pattern: /DB\s+Squat\s+Jump:\s*(\d+)x\s+(\d+)(?:-(\d+))?/i, name: 'DB Squat Jump' },
+    { pattern: /Hack\s+Squat:\s*(\d+)x\s+(\d+)(?:-(\d+))?/i, name: 'Hack Squat' },
+    { pattern: /Sled\s+Push:\s*(\d+)(?:-(\d+))?\s*x\s+(\d+\.?\d*)m/i, name: 'Sled Push' },
+    { pattern: /DB\s+Bench\s+Press:\s*(\d+)x\s+(\d+)(?:-(\d+))?/i, name: 'DB Bench Press' },
+    { pattern: /Pendlay\s+Row:\s*(\d+)x\s+(\d+)(?:-(\d+))?/i, name: 'Pendlay Row' },
+    { pattern: /Calf\s+Raise:\s*(\d+)(?:-(\d+))?\s*x\s+(\d+)(?:-(\d+))?/i, name: 'Calf Raise' },
+    { pattern: /Hang\s+Power\s+Clean:\s*(\d+)x\s+(\d+)(?:-(\d+))?/i, name: 'Hang Power Clean' },
+    { pattern: /Bounding\s+Broad\s+Jump:\s*(\d+)(?:-(\d+))?/i, name: 'Bounding Broad Jump' },
+    { pattern: /Lying\s+Leg\s+Curl:\s*(\d+)x\s+(\d+)(?:-(\d+))?/i, name: 'Lying Leg Curl' },
+    { pattern: /Unilateral\s+Leg\s+Press:\s*(\d+)x\s+(\d+)(?:-(\d+))?/i, name: 'Unilateral Leg Press' },
+    { pattern: /BB\s+OH\s+Press:\s*(\d+)x\s+(\d+)(?:-(\d+))?/i, name: 'BB OH Press' },
+    { pattern: /Seated\s+Cable\s+Row:\s*(\d+)x\s+(\d+)(?:-(\d+))?/i, name: 'Seated Cable Row' },
+    { pattern: /1¼\s+Push-Ups:\s*(\d+)x\s+failure/i, name: '1¼ Push-Ups' },
+    { pattern: /Sled\s+Pull:\s*(\d+)\s+lengths/i, name: 'Sled Pull' },
+    { pattern: /Seated\s+Calf\s+Raise:\s*(\d+)x\s+(\d+)(?:-(\d+))?/i, name: 'Seated Calf Raise' }
   ];
   
-  lines.forEach(line => {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.length < 3) return;
-    
-    // Check if line matches strength exercise pattern
-    const matchesPattern = strengthExercisePatterns.some(pattern => pattern.test(trimmed));
-    if (!matchesPattern) return;
-    
-    // Remove leading dash/bullet
-    const cleaned = trimmed.replace(/^[-•]\s*/, '');
-    
-    // Extract sets/reps if present
-    const setsRepsMatch = cleaned.match(/(\d+)\s+sets?\s+(?:of\s+)?(\d+)\s+reps?/i);
-    if (setsRepsMatch) {
-      const sets = parseInt(setsRepsMatch[1]);
-      const reps = parseInt(setsRepsMatch[2]);
-      const name = cleaned.replace(/\s+\d+\s+sets.*$/i, '').trim();
-      
-      exercises.push({
-        name,
-        type: 'strength',
-        sets: Array.from({ length: sets }, (_, i) => ({
-          setNum: i + 1,
-          weight: '',
-          reps,
-          completed: false,
-          previous: null
-        }))
-      });
-    } else {
-      // No explicit sets/reps, assume 3 sets
-      exercises.push({
-        name: cleaned,
-        type: 'strength',
-        sets: Array.from({ length: 3 }, (_, i) => ({
-          setNum: i + 1,
-          weight: '',
-          reps: '',
-          completed: false,
-          previous: null
-        }))
-      });
+  patterns.forEach(({ pattern, name }) => {
+    const match = description.match(pattern);
+    if (match) {
+      const sets = parseInt(match[1]);
+      const reps = parseInt(match[2] || match[3] || 0);
+      if (sets && reps) {
+        exercises.push({
+          name,
+          type: 'strength',
+          sets: Array.from({ length: sets }, (_, i) => ({
+            setNum: i + 1,
+            weight: '',
+            reps,
+            completed: false
+          }))
+        });
+      }
     }
   });
   
   return exercises;
 }
 
-/**
- * Parse simple workout (no structured sections)
- */
-function parseSimpleWorkout(description) {
-  // Just extract any recognizable exercises
-  return parseStrengthExercises(description);
-}
-
-/**
- * Get previous workout data for an exercise
- */
-export function getPreviousWorkout(exerciseName, previousWorkouts) {
-  if (!previousWorkouts || previousWorkouts.length === 0) return null;
+export function getPreviousWorkout(exerciseName, workoutHistory) {
+  if (!workoutHistory || workoutHistory.length === 0) return null;
   
-  // Find most recent workout with this exercise
-  for (const workout of previousWorkouts) {
-    if (workout.exercises) {
-      const match = workout.exercises.find(ex => 
-        ex.name.toLowerCase() === exerciseName.toLowerCase()
+  const sorted = [...workoutHistory].sort((a, b) => {
+    const dateA = new Date(a.date || a.completedAt);
+    const dateB = new Date(b.date || b.completedAt);
+    return dateB - dateA;
+  });
+  
+  for (const workout of sorted) {
+    const exercise = workout.exercises?.find(ex => ex.name === exerciseName);
+    if (exercise && exercise.sets && exercise.sets.length > 0) {
+      const hasData = exercise.sets.some(set => 
+        set.completed && (set.weight || set.avgHR || set.time)
       );
-      if (match) return match;
+      if (hasData) return exercise;
     }
   }
   
