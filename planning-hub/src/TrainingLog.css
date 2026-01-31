@@ -61,16 +61,65 @@
   border-bottom: 1px solid #e0e0e0;
 }
 
-.workout-title h2 {
-  margin: 0 0 4px 0;
-  font-size: 24px;
+.date-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.date-nav-btn {
+  background: #f0f0f0;
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.date-nav-btn:active {
+  background: #e0e0e0;
+}
+
+.date-display {
+  flex: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.date-display h2 {
+  margin: 0;
+  font-size: 20px;
   color: #1a1a1a;
 }
 
-.workout-date {
-  margin: 0;
+.today-btn {
+  background: #3B82F6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.today-btn:active {
+  background: #2563EB;
+}
+
+.workout-summary {
+  margin: 8px 0 0 0;
   color: #666;
   font-size: 14px;
+  text-align: center;
 }
 
 .exercise-block {

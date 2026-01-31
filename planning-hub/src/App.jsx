@@ -3257,7 +3257,8 @@ function App() {
       <main className="app-main">
         {activeView === 'planner' && <PlannerView date={currentDate} events={events} tasks={tasks} staff={staff} macros={macros} ingredients={ingredients} recipes={recipes} mealPlans={mealPlans} weeklyGoals={weeklyGoals} currentStaffId={currentStaffId} filterStaffId={filterStaffId} onFilterStaffChange={setFilterStaffId} onAddEvent={() => openAddEvent(formatDate(currentDate))} onAddTask={() => { setEditingTask(null); setTaskModalOpen(true); }} onEditEvent={(e) => { setEditingEvent(e); setEventModalOpen(true); }} onEditTask={openEditTask} onDeleteEvent={handleDeleteEvent} onDeleteTask={handleDeleteTask} onToggleTask={handleToggleTask} onToggleEvent={handleToggleEvent} onReorderTask={handleReorderTask} onNavigate={navigateDate} onToday={goToToday} onSaveMacros={handleSaveMacros} onCopyWeek={handleCopyWeek} onSaveMealPlan={handleSaveMealPlan} onSaveWeeklyGoals={handleSaveWeeklyGoals} />}
         {activeView === 'training' && <TrainingLog 
-          todayEvent={events.find(e => e.startDate === formatDate(currentDate))} 
+          currentDate={currentDate}
+          events={events}
           previousWorkouts={workoutHistory || []} 
           onSave={(workoutData) => {
             // Save workout to Firebase

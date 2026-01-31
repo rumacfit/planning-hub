@@ -9,18 +9,42 @@ const TimerIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="no
 const LinkIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
 const MoreIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>;
 
-const TrainingLog = ({ todayEvent, previousWorkouts, onSave, onFinish }) => {
+const TrainingLog = ({ currentDate, events, previousWorkouts, onSave, onFinish, onNavigate }) => {
   const [timer, setTimer] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [exercises, setExercises] = useState([]);
+  const [viewDate, setViewDate] = useState(currentDate || new Date());
   
-  // Initialize exercises from today's event
+  // Get all events for the current viewing date
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
+  const dateStr = formatDate(viewDate);
+  const dayEvents = events.filter(e => e.startDate === dateStr);
+  
+  // Initialize exercises from ALL events for this day
   useEffect(() => {
-    if (todayEvent && todayEvent.description) {
-      const parsed = parseWorkoutDescription(todayEvent.description);
-      setExercises(parsed);
+    if (dayEvents.length > 0) {
+      let allExercises = [];
+      dayEvents.forEach(event => {
+        if (event.description) {
+          const parsed = parseWorkoutDescription(event.description);
+          // Add event title context to exercises
+          parsed.forEach(ex => {
+            ex.eventTitle = event.title;
+          });
+          allExercises = [...allExercises, ...parsed];
+        }
+      });
+      setExercises(allExercises);
+    } else {
+      setExercises([]);
     }
-  }, [todayEvent]);
+  }, [viewDate, events]);
   
   // Timer
   useEffect(() => {
@@ -109,6 +133,18 @@ const TrainingLog = ({ todayEvent, previousWorkouts, onSave, onFinish }) => {
     }
   };
   
+  const navigateDay = (direction) => {
+    const newDate = new Date(viewDate);
+    newDate.setDate(newDate.getDate() + direction);
+    setViewDate(newDate);
+    setTimer(0);
+    setIsRunning(false);
+  };
+  
+  const goToToday = () => {
+    setViewDate(new Date());
+  };
+  
   return (
     <div className="training-log">
       <div className="training-header">
@@ -120,8 +156,19 @@ const TrainingLog = ({ todayEvent, previousWorkouts, onSave, onFinish }) => {
       </div>
       
       <div className="workout-title">
-        <h2>{todayEvent?.title || 'Workout'}</h2>
-        <p className="workout-date">{new Date().toLocaleDateString()}</p>
+        <div className="date-nav">
+          <button className="date-nav-btn" onClick={() => navigateDay(-1)}>←</button>
+          <div className="date-display">
+            <h2>{viewDate.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric' })}</h2>
+            {formatDate(viewDate) !== formatDate(new Date()) && (
+              <button className="today-btn" onClick={goToToday}>Today</button>
+            )}
+          </div>
+          <button className="date-nav-btn" onClick={() => navigateDay(1)}>→</button>
+        </div>
+        {dayEvents.length > 0 && (
+          <p className="workout-summary">{dayEvents.map(e => e.title).join(' + ')}</p>
+        )}
       </div>
       
       {exercises.map(exercise => (
