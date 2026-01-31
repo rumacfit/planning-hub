@@ -171,7 +171,17 @@ const TrainingLog = ({ currentDate, events, previousWorkouts, onSave, onFinish, 
         )}
       </div>
       
-      {exercises.map(exercise => (
+      {exercises.map(exercise => {
+        // Render section headers differently
+        if (exercise.type === 'header') {
+          return (
+            <div key={exercise.id} className="section-header">
+              <h2>{exercise.name}</h2>
+            </div>
+          );
+        }
+        
+        return (
         <div key={exercise.id} className="exercise-block">
           <div className="exercise-header">
             <h3>{exercise.name}</h3>
