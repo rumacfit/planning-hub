@@ -8,6 +8,13 @@ export function parseWorkoutDescription(description) {
   const exercises = [];
   let exerciseId = 1;
   
+  // Extract different sections
+  const sections = {
+    med: description.match(/MED:([^]*?)(?=Performance:|MDV:|$)/i)?.[1] || '',
+    performance: description.match(/Performance:([^]*?)(?=MDV:|$)/i)?.[1] || '',
+    mdv: description.match(/MDV:([^]*?)$/i)?.[1] || ''
+  };
+  
   // Check for threshold runs
   const thresholdPattern = /(\d+)x\s*(\d+)min\s*@\s*threshold/gi;
   let match;
@@ -54,26 +61,128 @@ export function parseWorkoutDescription(description) {
     }
   }
   
+  // Check for zone work in MED section
+  const zoneWorkMatch = sections.med.match(/(\d+)min\s*(?:@\s*)?Z(\d)/gi);
+  if (zoneWorkMatch && zoneWorkMatch.length > 0) {
+    // Combine all zone work into one aerobic base exercise
+    const totalMinutes = zoneWorkMatch.reduce((sum, match) => {
+      const mins = parseInt(match.match(/(\d+)min/)[1]);
+      return sum + mins;
+    }, 0);
+    
+    exercises.push({
+      id: exerciseId++,
+      name: `Aerobic Base - ${totalMinutes}min`,
+      type: 'cardio',
+      sets: [{
+        setNum: 1,
+        distance: '',
+        time: `${totalMinutes}:00`,
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false,
+        previous: null
+      }]
+    });
+  }
+  
+  // Check for strides
+  const stridesMatch = description.match(/Strides?:\s*(\d+)(?:-(\d+))?\s*(?:x\s*)?(\d+)(?:-(\d+))?\s*(?:sec|seconds)/i);
+  if (stridesMatch) {
+    const numStrides = parseInt(stridesMatch[2] || stridesMatch[1]);
+    exercises.push({
+      id: exerciseId++,
+      name: 'Strides',
+      type: 'cardio',
+      sets: Array.from({ length: numStrides }, (_, i) => ({
+        setNum: i + 1,
+        distance: 0.1,
+        time: '',
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false,
+        previous: null
+      }))
+    });
+  }
+  
+  // Check for finisher exercises
+  const lungesMatch = description.match(/(\d+)\s*(?:backward[- ])?(?:stepping[- ])?lunges/i);
+  if (lungesMatch) {
+    exercises.push({
+      id: exerciseId++,
+      name: 'Backward Lunges',
+      type: 'strength',
+      sets: [{
+        setNum: 1,
+        weight: 0,
+        reps: parseInt(lungesMatch[1]),
+        completed: false,
+        previous: null
+      }]
+    });
+  }
+  
+  // Check for wall balls
+  const wallBallsMatch = description.match(/(\d+)\s*wall\s*balls/i);
+  if (wallBallsMatch) {
+    exercises.push({
+      id: exerciseId++,
+      name: 'Wall Balls',
+      type: 'strength',
+      sets: [{
+        setNum: 1,
+        weight: 0,
+        reps: parseInt(wallBallsMatch[1]),
+        completed: false,
+        previous: null
+      }]
+    });
+  }
+  
+  // Check for Echo Bike / Concept2 Bike
+  const bikeMatch = description.match(/(\d+)(?:x\s*)?(\d+)\s*sec.*?(?:echo\s*bike|bike)/i);
+  if (bikeMatch) {
+    const sets = parseInt(bikeMatch[1]);
+    exercises.push({
+      id: exerciseId++,
+      name: 'Echo Bike',
+      type: 'cardio',
+      sets: Array.from({ length: sets }, (_, i) => ({
+        setNum: i + 1,
+        distance: '',
+        time: `0:${bikeMatch[2]}`,
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false,
+        previous: null
+      }))
+    });
+  }
+  
   // Check for ski erg
-  if (description.match(/ski/i)) {
-    const skiDistance = description.match(/(\d+)\s*(?:m|metres?)\s*ski/i);
-    if (skiDistance) {
-      exercises.push({
-        id: exerciseId++,
-        name: 'Ski Erg',
-        type: 'cardio',
-        sets: [{
-          setNum: 1,
-          distance: parseInt(skiDistance[1]) / 1000,
-          time: '',
-          avgHR: '',
-          pace: '',
-          rpe: '',
-          completed: false,
-          previous: null
-        }]
-      });
-    }
+  const skiMatch = description.match(/(\d+)x?\s*(\d+)\s*(?:m|metres?)\s*ski/i);
+  if (skiMatch) {
+    const sets = skiMatch[1] === skiMatch[2] ? 1 : parseInt(skiMatch[1]);
+    const distance = parseInt(skiMatch[2]);
+    exercises.push({
+      id: exerciseId++,
+      name: 'Ski Erg',
+      type: 'cardio',
+      sets: Array.from({ length: sets }, (_, i) => ({
+        setNum: i + 1,
+        distance: distance / 1000,
+        time: '',
+        avgHR: '',
+        pace: '',
+        rpe: '',
+        completed: false,
+        previous: null
+      }))
+    });
   }
   
   // Strength exercises
