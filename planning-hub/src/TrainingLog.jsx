@@ -66,12 +66,12 @@ const TrainingLog = ({ currentDate, events, previousWorkouts, onSave, onFinish, 
     if (exercises.length > 0 && previousWorkouts?.length > 0) {
       const updatedExercises = exercises.map(ex => {
         const prevEx = getPreviousWorkout(ex.name, previousWorkouts);
-        if (prevEx) {
+        if (prevEx && prevEx.sets) {
           return {
             ...ex,
             sets: ex.sets.map((set, i) => ({
               ...set,
-              previous: prevEx.sets[i] || null
+              previous: prevEx.sets[i] || prevEx.sets[0] || null // Fall back to first set if index doesn't match
             }))
           };
         }
@@ -79,7 +79,7 @@ const TrainingLog = ({ currentDate, events, previousWorkouts, onSave, onFinish, 
       });
       setExercises(updatedExercises);
     }
-  }, [previousWorkouts]);
+  }, [exercises.length, previousWorkouts]);
   
   const updateSet = (exerciseId, setNum, field, value) => {
     setExercises(exercises.map(ex => {

@@ -122,13 +122,25 @@ export function parseWorkoutDescription(description) {
 
 export function getPreviousWorkout(exerciseName, workoutHistory) {
   // Find the most recent workout containing this exercise
+  // Sort by date descending to get most recent first
   if (!workoutHistory || workoutHistory.length === 0) return null;
   
-  for (let i = workoutHistory.length - 1; i >= 0; i--) {
-    const workout = workoutHistory[i];
+  const sorted = [...workoutHistory].sort((a, b) => {
+    const dateA = new Date(a.date || a.completedAt);
+    const dateB = new Date(b.date || b.completedAt);
+    return dateB - dateA; // Most recent first
+  });
+  
+  for (const workout of sorted) {
     const exercise = workout.exercises?.find(ex => ex.name === exerciseName);
-    if (exercise) {
-      return exercise;
+    if (exercise && exercise.sets && exercise.sets.length > 0) {
+      // Only return if there's actual logged data
+      const hasData = exercise.sets.some(set => 
+        set.completed && (set.weight || set.avgHR || set.time)
+      );
+      if (hasData) {
+        return exercise;
+      }
     }
   }
   
